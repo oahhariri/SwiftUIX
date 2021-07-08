@@ -18,20 +18,25 @@ struct WindowOverlay<Content: View>: AppKitOrUIKitViewControllerRepresentable {
     
     @usableFromInline
     init(content: Content, isKeyAndVisible: Binding<Bool>) {
+    let theme: UIUserInterfaceStyle
+    
+    @usableFromInline
+    init(content: Content, isKeyAndVisible: Binding<Bool>,theme:UIUserInterfaceStyle) {
         self.content = content
         self.isKeyAndVisible = isKeyAndVisible
+        self.theme = theme
     }
     
     @usableFromInline
     func makeAppKitOrUIKitViewController(context: Context) -> AppKitOrUIKitViewControllerType {
-        .init(content: content, isKeyAndVisible: isKeyAndVisible)
+        .init(content: content, isKeyAndVisible: isKeyAndVisible, theme: theme)
     }
     
     @usableFromInline
     func updateAppKitOrUIKitViewController(_ viewController: AppKitOrUIKitViewControllerType, context: Context) {
         viewController.isKeyAndVisible = isKeyAndVisible
         viewController.content = content
-        
+        viewController.theme = theme
         viewController.updateWindow()
     }
     
@@ -57,6 +62,9 @@ extension WindowOverlay {
         var isKeyAndVisible: Binding<Bool>
         
         @usableFromInline
+        var theme: UIUserInterfaceStyle
+        
+        @usableFromInline
         var contentWindow: AppKitOrUIKitHostingWindow<Content>?
         #if os(macOS)
         @usableFromInline
@@ -64,10 +72,10 @@ extension WindowOverlay {
         #endif
         
         @usableFromInline
-        init(content: Content, isKeyAndVisible: Binding<Bool>) {
+        init(content: Content, isKeyAndVisible: Binding<Bool>,theme:UIUserInterfaceStyle) {
             self.content = content
             self.isKeyAndVisible = isKeyAndVisible
-            
+            self.theme = theme
             super.init(nibName: nil, bundle: nil)
             
             #if os(macOS)
@@ -118,7 +126,7 @@ extension WindowOverlay {
                 contentWindow.isHidden = false
                 contentWindow.isUserInteractionEnabled = true
                 contentWindow.windowLevel = .init(rawValue: window.windowLevel.rawValue + 1)
-                
+                contentWindow.overrideUserInterfaceStyle = theme
                 contentWindow.makeKeyAndVisible()
                 #endif
             } else {
@@ -165,9 +173,10 @@ extension View {
     ///   - content: A closure returning the content of the window.
     public func windowOverlay<Content: View>(
         isKeyAndVisible: Binding<Bool>,
+        theme: UIUserInterfaceStyle,
         @ViewBuilder _ content: () -> Content
     ) -> some View {
-        background(WindowOverlay(content: content(), isKeyAndVisible: isKeyAndVisible))
+        background(WindowOverlay(content: content(), isKeyAndVisible: isKeyAndVisible, theme: theme))
     }
 }
 
