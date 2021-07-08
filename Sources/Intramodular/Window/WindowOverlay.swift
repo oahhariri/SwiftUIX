@@ -17,7 +17,6 @@ struct WindowOverlay<Content: View>: AppKitOrUIKitViewControllerRepresentable {
     let isKeyAndVisible: Binding<Bool>
     
     @usableFromInline
-    init(content: Content, isKeyAndVisible: Binding<Bool>) {
     let theme: UIUserInterfaceStyle
     
     @usableFromInline
