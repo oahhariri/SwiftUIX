@@ -92,7 +92,7 @@ open class CocoaHostingController<Content: View>: AppKitOrUIKitHostingController
     override open func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         
-        if let window = view.window, window.canResizeToFitContent {
+        if let window = view.window, window.canResizeToFitContent, view.frame.size.isAreaZero {
             window.frame.size = sizeThatFits(in: Screen.main.bounds.size)
         }
     }
@@ -119,7 +119,6 @@ open class CocoaHostingController<Content: View>: AppKitOrUIKitHostingController
     
     /// https://twitter.com/b3ll/status/1193747288302075906
     public func _fixSafeAreaInsetsIfNecessary() {
-        #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst)
         defer {
             _safeAreaInsetsAreFixed = true
         }
@@ -127,11 +126,19 @@ open class CocoaHostingController<Content: View>: AppKitOrUIKitHostingController
         guard !_safeAreaInsetsAreFixed else {
             return
         }
-        
+               
+        _fixSafeAreaInsets()
+    }
+}
+
+extension AppKitOrUIKitHostingController {
+    /// https://twitter.com/b3ll/status/1193747288302075906
+    func _fixSafeAreaInsets() {
+        #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst)
         guard let viewClass = object_getClass(view) else {
             return
         }
-        
+
         let className = String(cString: class_getName(viewClass)).appending("_SwiftUIX_patched")
         
         if let viewSubclass = NSClassFromString(className) {

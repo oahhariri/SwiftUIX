@@ -9,7 +9,8 @@ import SwiftUI
 public struct DismissPresentationButton<Label: View>: ActionLabelView {
     @Environment(\.presentationMode) private var presentationMode
     @Environment(\.presentationManager) private var presentationManager
-    
+    @Environment(\.presenter) private var presenter
+
     private let action: Action
     private let label: Label
     
@@ -31,10 +32,14 @@ public struct DismissPresentationButton<Label: View>: ActionLabelView {
             action.perform()
         }
         
-        if presentationMode.isPresented {
-            presentationMode.dismiss()
+        if presentationManager.isPresented {
+            if let presenter = presenter, presentationManager is Binding<PresentationMode> {
+                presenter.dismissTopmost()
+            } else {
+                presentationManager.dismiss()
+            }
         } else {
-            presentationManager.dismiss()
+            presentationMode.dismiss()
         }
     }
 }

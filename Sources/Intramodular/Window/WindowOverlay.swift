@@ -37,6 +37,13 @@ struct WindowOverlay<Content: View>: AppKitOrUIKitViewControllerRepresentable {
         viewController.content = content
         viewController.theme = theme
         viewController.updateWindow()
+        
+        #if os(iOS)
+        if let window = viewController.contentWindow {
+            window.overrideUserInterfaceStyle = context.environment.colorScheme == .light ? .light : .dark
+            window.rootViewController?.overrideUserInterfaceStyle = window.overrideUserInterfaceStyle
+        }
+        #endif
     }
     
     @usableFromInline
@@ -116,6 +123,7 @@ extension WindowOverlay {
                 #endif
                 
                 contentWindow.rootView = content
+                contentWindow.isKeyAndVisible = isKeyAndVisible
                 
                 #if os(macOS)
                 contentWindow.title = ""
@@ -127,6 +135,8 @@ extension WindowOverlay {
                 contentWindow.windowLevel = .init(rawValue: window.windowLevel.rawValue + 1)
                 contentWindow.overrideUserInterfaceStyle = theme
                 contentWindow.makeKeyAndVisible()
+                
+                contentWindow.rootViewController?.view.setNeedsDisplay()
                 #endif
             } else {
                 #if os(macOS)
@@ -134,10 +144,11 @@ extension WindowOverlay {
                 #else
                 contentWindow?.isHidden = true
                 contentWindow?.isUserInteractionEnabled = false
+                contentWindow = nil
                 #endif
             }
         }
-                
+        
         @usableFromInline
         @objc required dynamic init?(coder aDecoder: NSCoder) {
             fatalError("init(coder:) has not been implemented")

@@ -8,7 +8,7 @@ import Swift
 import SwiftUI
 
 /// A zero-size view for when `EmptyView` just doesn't work.
-public struct ZeroSizeView: AppKitOrUIKitViewRepresentable {
+public struct _ZeroSizeView: AppKitOrUIKitViewRepresentable {
     public final class AppKitOrUIKitViewType: AppKitOrUIKitView {
         public override var intrinsicContentSize: CGSize {
             .zero
@@ -47,6 +47,9 @@ public struct ZeroSizeView: AppKitOrUIKitViewRepresentable {
         view.isHidden = true
         view.isOpaque = true
         view.isUserInteractionEnabled = false
+        
+        view.setContentHuggingPriority(.required, for: .horizontal)
+        view.setContentHuggingPriority(.required, for: .vertical)
         #endif
         
         view.frame.size = .zero
@@ -60,13 +63,29 @@ public struct ZeroSizeView: AppKitOrUIKitViewRepresentable {
     }
 }
 
+public struct ZeroSizeView: View {
+    public var body: some View {
+        _ZeroSizeView()
+            .frame(width: 0, height: 0)
+            .accessibility(hidden: true)
+            .allowsHitTesting(false)
+    }
+    
+    public init() {
+        
+    }
+}
+
 #else
 
 /// A zero-size view for when `EmptyView` just doesn't work.
 public struct ZeroSizeView: View {
     @inlinable
     public var body: some View {
-        Color.almostClear.frameZeroClipped()
+        Color.almostClear
+            .frame(width: 0, height: 0)
+            .allowsHitTesting(false)
+            .accessibility(hidden: true)
     }
     
     @inlinable

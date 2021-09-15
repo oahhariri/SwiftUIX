@@ -74,18 +74,25 @@ extension OptionalDimensions {
         
         return result
     }
+    
+    public func drop(_ axes: Axis.Set) -> Self {
+        Self.init(
+            width: axes.contains(.horizontal) ? nil : 0,
+            height: axes.contains(.vertical) ? nil : 0
+        )
+    }
 }
 
 // MARK: - API -
 
 extension View {
     /// Sets the preferred maximum layout width for the view.
-    public func preferredMaximumLayoutWidth(_ preferredMaximumLayoutWidth: CGFloat) -> some View {
+    public func preferredMaximumLayoutWidth(_ preferredMaximumLayoutWidth: CGFloat?) -> some View {
         environment(\.preferredMaximumLayoutWidth, preferredMaximumLayoutWidth)
     }
     
     /// Sets the preferred maximum layout height for the view.
-    public func preferredMaximumLayoutHeight(_ preferredMaximumLayoutHeight: CGFloat) -> some View {
+    public func preferredMaximumLayoutHeight(_ preferredMaximumLayoutHeight: CGFloat?) -> some View {
         environment(\.preferredMaximumLayoutHeight, preferredMaximumLayoutHeight)
     }
     
@@ -116,9 +123,9 @@ extension EnvironmentValues {
     /// The default value is nil.
     public var preferredMaximumLayoutWidth: CGFloat? {
         get {
-            self[PreferredMaximumLayoutWidth]
+            self[PreferredMaximumLayoutWidth.self]
         } set {
-            self[PreferredMaximumLayoutWidth] = newValue
+            self[PreferredMaximumLayoutWidth.self] = newValue
         }
     }
     
@@ -131,9 +138,9 @@ extension EnvironmentValues {
     /// The default value is nil.
     public var preferredMaximumLayoutHeight: CGFloat? {
         get {
-            self[PreferredMaximumLayoutHeight]
+            self[PreferredMaximumLayoutHeight.self]
         } set {
-            self[PreferredMaximumLayoutHeight] = newValue
+            self[PreferredMaximumLayoutHeight.self] = newValue
         }
     }
     

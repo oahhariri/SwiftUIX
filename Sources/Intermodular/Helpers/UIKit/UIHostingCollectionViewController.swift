@@ -37,7 +37,7 @@ final class UIHostingCollectionViewController<
         CellContent
     >
     
-    var dataSource: DataSource? = nil {
+    var dataSource: DataSource.Payload? = nil {
         didSet {
             updateDataSource(oldValue: oldValue, newValue: dataSource)
         }
@@ -115,6 +115,11 @@ final class UIHostingCollectionViewController<
     public override func viewDidLoad() {
         super.viewDidLoad()
         
+        registerCellAndSupplementaryViewTypes()
+        setupDiffableDataSource()
+    }
+    
+    private func registerCellAndSupplementaryViewTypes() {
         collectionView.register(
             UICollectionViewCellType.self,
             forCellWithReuseIdentifier: .hostingCollectionViewCellIdentifier
@@ -131,7 +136,9 @@ final class UIHostingCollectionViewController<
             forSupplementaryViewOfKind: UICollectionView.elementKindSectionFooter,
             withReuseIdentifier: .hostingCollectionViewSupplementaryViewIdentifier
         )
-        
+    }
+    
+    private func setupDiffableDataSource() {
         let diffableDataSource = UICollectionViewDiffableDataSource<SectionIdentifierType, ItemIdentifierType>(collectionView: collectionView) { [weak self] collectionView, indexPath, sectionIdentifier in
             guard let self = self, self.dataSource != nil else {
                 return nil
@@ -158,7 +165,7 @@ final class UIHostingCollectionViewController<
             
             self.cache.preconfigure(cell: cell)
             
-            cell.update(disableAnimation: true, forced: false)
+            cell.update(disableAnimation: true)
             
             return cell
         }
@@ -247,21 +254,29 @@ final class UIHostingCollectionViewController<
     override public func viewSafeAreaInsetsDidChange()  {
         super.viewSafeAreaInsetsDidChange()
         
-        invalidateLayout(includingCache: false)
+        invalidateLayout(includingCache: false, animated: true)
     }
     
     public override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
         
-        invalidateLayout(includingCache: true)
+        invalidateLayout(includingCache: true, animated: true)
     }
     
-    public func invalidateLayout(includingCache: Bool) {
+    public func invalidateLayout(includingCache: Bool, animated: Bool) {
         if includingCache {
             cache.invalidate()
         }
         
+        CATransaction.begin()
+        
+        if !animated {
+            CATransaction.setDisableActions(true)
+        }
+        
         collectionView.collectionViewLayout.invalidateLayout()
+        
+        CATransaction.commit()
     }
     
     // MARK: - UICollectionViewDelegate -
@@ -400,6 +415,25 @@ final class UIHostingCollectionViewController<
     
     // MARK: UIScrollViewDelegate
     
+    public func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        let _scrollViewWillBeginDragging_dismissKeyboard = "_scrollViewWillBeginDragging_dismissKeyboard"
+        
+        self.perform(Selector(_scrollViewWillBeginDragging_dismissKeyboard))
+    }
+    
+    @available(macCatalystApplicationExtension, unavailable)
+    @available(iOSApplicationExtension, unavailable)
+    @available(tvOSApplicationExtension, unavailable)
+    @objc(_scrollViewWillBeginDragging_dismissKeyboard) func _scrollViewWillBeginDragging_dismissKeyboard() {
+        #if os(iOS)
+        if #available(iOS 13.0, *) {
+            if _scrollViewConfiguration.keyboardDismissMode == .onDrag {
+                Keyboard.dismiss()
+            }
+        }
+        #endif
+    }
+    
     public func scrollViewDidScroll(_ scrollView: UIScrollView) {
         if let onOffsetChange = _scrollViewConfiguration.onOffsetChange {
             onOffsetChange(scrollView.contentOffset(forContentType: AnyView.self))
@@ -412,46 +446,38 @@ final class UIHostingCollectionViewController<
 }
 
 extension UIHostingCollectionViewController {
-    func refresh() {
-        guard let dataSource = _internalDiffableDataSource else {
-            return
-        }
-        
-        dataSource.apply(dataSource.snapshot(), animatingDifferences: true)
-    }
-    
     func refreshVisibleCellsAndSupplementaryViews() {
-        collectionView.visibleSupplementaryViews(ofKind: UICollectionView.elementKindSectionHeader).forEach { view in
+        for view in collectionView.visibleSupplementaryViews(ofKind: UICollectionView.elementKindSectionHeader) {
             guard let view = view as? UICollectionViewSupplementaryViewType else {
                 return
             }
             
-            view.cache.content = nil
+            view.cache = .init()
             view.configuration?.viewProvider = viewProvider
             
-            view.update(disableAnimation: true, forced: true)
+            view.update(disableAnimation: true)
         }
         
-        collectionView.visibleCells.forEach { cell in
+        for cell in collectionView.visibleCells {
             guard let cell = cell as? UICollectionViewCellType else {
                 return
             }
             
-            cell.cache.content = nil
+            cell.cache = .init()
             cell.configuration?.viewProvider = viewProvider
             
-            cell.update(disableAnimation: true, forced: false)
+            cell.update(disableAnimation: true)
         }
         
-        collectionView.visibleSupplementaryViews(ofKind: UICollectionView.elementKindSectionFooter).forEach { view in
+        for view in collectionView.visibleSupplementaryViews(ofKind: UICollectionView.elementKindSectionFooter) {
             guard let view = view as? UICollectionViewSupplementaryViewType else {
                 return
             }
             
-            view.cache.content = nil
+            view.cache = .init()
             view.configuration?.viewProvider = viewProvider
             
-            view.update(disableAnimation: true, forced: true)
+            view.update(disableAnimation: true)
         }
     }
 }

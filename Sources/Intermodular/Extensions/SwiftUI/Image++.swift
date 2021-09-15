@@ -57,6 +57,17 @@ extension Image {
             }
         }
     }
+    
+    public func sizeToFit(width: CGFloat? = nil, height: CGFloat? = nil) -> some View {
+        resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: width, height: height)
+    }
+    
+    @_disfavoredOverload
+    public func sizeToFit(_ size: CGSize? = nil) -> some View {
+        sizeToFit(width: size?.width, height: size?.height)
+    }
 }
 
 #if os(macOS) && swift(<5.3)

@@ -191,7 +191,7 @@ extension UIHostingCollectionViewController.Cache {
             
             if oldValue?.relativeFrame != newValue?.relativeFrame {
                 parent.cache.invalidateIndexPath(indexPath)
-                parent.invalidateLayout(includingCache: false)
+                parent.invalidateLayout(includingCache: false, animated: false)
             }
         }
     }
@@ -222,7 +222,7 @@ extension UIHostingCollectionViewController.Cache {
                 
                 if oldValue?.relativeFrame != newValue?.relativeFrame {
                     self.parent.cache.invalidateIndexPath(indexPath)
-                    self.parent.invalidateLayout(includingCache: false)
+                    self.parent.invalidateLayout(includingCache: false, animated: false)
                 }
             }
         )
@@ -245,13 +245,12 @@ extension UIHostingCollectionViewController.Cache {
         
         preconfigure(cell: prototypeCell)
         
-        prototypeCell.update(disableAnimation: true, forced: true)
+        prototypeCell.update(disableAnimation: true)
         prototypeCell.cellWillDisplay(inParent: nil, isPrototype: true)
         
         let size = prototypeCell
             .systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
-            .rounded(.up)
-            .clamped(to: prototypeCell.configuration?.maximumSize ?? nil)
+            .clamped(to: (prototypeCell.configuration?.maximumSize ?? nil).rounded(.down))
         
         guard !(size.width == 1 && size.height == 1) else {
             return size
@@ -277,13 +276,12 @@ extension UIHostingCollectionViewController.Cache {
         
         preconfigure(cell: prototypeCell)
         
-        prototypeView.update(forced: true)
+        prototypeView.update(disableAnimation: true)
         prototypeView.supplementaryViewWillDisplay(inParent: nil, isPrototype: true)
         
         let size = prototypeView
             .systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
-            .rounded(.up)
-            .clamped(to: configuration.maximumSize)
+            .clamped(to: configuration.maximumSize?.rounded(.down))
         
         guard !(size.width == 1 && size.height == 1) else {
             return size

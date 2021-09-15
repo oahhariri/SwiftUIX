@@ -33,6 +33,22 @@ public struct CocoaScrollView<Content: View>: UIViewRepresentable  {
     }
     
     public func updateUIView(_ uiView: UIViewType, context: Context) {
+        uiView._isUpdating = true
+        
+        defer {
+            uiView._isUpdating = false
+        }
+        
+        populateScrollViewProxy: do {
+            if let _collectionViewProxy = context.environment._cocoaScrollViewProxy {
+                if _collectionViewProxy.wrappedValue.base !== uiView {
+                    DispatchQueue.main.async {
+                        _collectionViewProxy.wrappedValue.base = uiView
+                    }
+                }
+            }
+        }
+
         uiView.isUserInteractionEnabled = context.environment.isEnabled
         
         var configuration = self.configuration

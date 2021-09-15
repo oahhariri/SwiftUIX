@@ -35,15 +35,7 @@ public enum ModalPresentationStyle: Equatable {
     #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst)
     case custom(UIViewControllerTransitioningDelegate)
     #endif
-    
-    private var _automatic: ModalPresentationStyle {
-        #if os(iOS) || targetEnvironment(macCatalyst)
-        return .page
-        #else
-        return .automatic
-        #endif
-    }
-    
+        
     public static func == (lhs: ModalPresentationStyle, rhs: ModalPresentationStyle) -> Bool {
         switch (lhs, rhs) {
             case (.fullScreen, .fullScreen):
@@ -69,10 +61,6 @@ public enum ModalPresentationStyle: Equatable {
                 return true
             #endif
             case (.automatic, .automatic):
-                return true
-            case (lhs._automatic, .automatic):
-                return true
-            case (.automatic, rhs._automatic):
                 return true
             case (.none, .none):
                 return true
@@ -126,9 +114,9 @@ extension ModalPresentationStyle {
 extension EnvironmentValues {
     public var modalPresentationStyle: ModalPresentationStyle {
         get {
-            self[ModalPresentationStyle.EnvironmentKey]
+            self[ModalPresentationStyle.EnvironmentKey.self]
         } set {
-            self[ModalPresentationStyle.EnvironmentKey] = newValue
+            self[ModalPresentationStyle.EnvironmentKey.self] = newValue
         }
     }
 }

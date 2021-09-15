@@ -7,22 +7,33 @@ import SwiftUI
 
 #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst)
 
-@usableFromInline
-struct _CollectionViewConfiguration {
-    @usableFromInline
+public struct _CollectionViewConfiguration {
+    public struct UnsafeFlags: OptionSet {
+        public let rawValue: Int
+        
+        public init(rawValue: Int) {
+            self.rawValue = rawValue
+        }
+        
+        public static let disableCellHostingControllerEmbed = Self(rawValue: 1 << 0)
+        public static let ignorePreferredCellLayoutAttributes = Self(rawValue: 1 << 1)
+        public static let reuseCellRender = Self(rawValue: 1 << 2)
+    }
+    
+    var unsafeFlags = UnsafeFlags()
+    
     var fixedSize: (vertical: Bool, horizontal: Bool) = (false, false)
-    @usableFromInline
     var allowsMultipleSelection: Bool = false
-    @usableFromInline
     var disableAnimatingDifferences: Bool = false
     #if !os(tvOS)
-    @usableFromInline
     var reorderingCadence: UICollectionView.ReorderingCadence = .immediate
     #endif
-    @usableFromInline
     var isDragActive: Binding<Bool>? = nil
-    @usableFromInline
-    var _ignorePreferredCellLayoutAttributes: Bool = false
+    var dataSourceUpdateToken: AnyHashable?
+    
+    var ignorePreferredCellLayoutAttributes: Bool {
+        unsafeFlags.contains(.ignorePreferredCellLayoutAttributes)
+    }
 }
 
 // MARK: - Auxiliary Implementation -
@@ -34,9 +45,9 @@ struct _CollectionViewConfigurationEnvironmentKey: EnvironmentKey {
 extension EnvironmentValues {
     var _collectionViewConfiguration: _CollectionViewConfiguration {
         get {
-            self[_CollectionViewConfigurationEnvironmentKey]
+            self[_CollectionViewConfigurationEnvironmentKey.self]
         } set {
-            self[_CollectionViewConfigurationEnvironmentKey] = newValue
+            self[_CollectionViewConfigurationEnvironmentKey.self] = newValue
         }
     }
 }

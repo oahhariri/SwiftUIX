@@ -5,29 +5,43 @@
 import Swift
 import SwiftUI
 
-var _areAnimationsDisabled: Bool = false
+var _areAnimationsDisabledGlobally: Bool = false
 
+/// Returns the result of recomputing the view’s body with animations disabled.
 public func withoutAnimation(_ flag: Bool = true, _ body: () -> ()) {
     guard flag else {
         return body()
     }
     
-    #if os(iOS) || os(macOS) || os(tvOS) || targetEnvironment(macCatalyst)
-    CATransaction.begin()
-    CATransaction.disableActions()
-    #endif
-    
-    _areAnimationsDisabled = true
+    _areAnimationsDisabledGlobally = true
     
     withAnimation(.none) {
         body()
     }
     
-    DispatchQueue.main.async {
-        _areAnimationsDisabled = false
+    _areAnimationsDisabledGlobally = false
+}
+
+func _withoutAnimation(_ flag: Bool = true, _ body: () -> ()) {
+    guard flag else {
+        return body()
     }
     
-    #if os(iOS) || os(macOS) || os(tvOS) || targetEnvironment(macCatalyst)
-    CATransaction.commit()
+    withAnimation(.none) {
+        body()
+    }
+}
+
+func _withoutAnimation_AppKitOrUIKit(_ flag: Bool = true, _ body: () -> ()) {
+    guard flag else {
+        return body()
+    }
+    
+    #if os(iOS)
+    UIView.performWithoutAnimation {
+        body()
+    }
+    #else
+    body()
     #endif
 }

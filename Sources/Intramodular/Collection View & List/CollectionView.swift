@@ -234,6 +234,21 @@ extension CollectionView {
 // MARK: - API -
 
 extension CollectionView {
+    public func updateOnChange<T: Hashable>(of value: T) -> Self {
+        then({ $0._collectionViewConfiguration.dataSourceUpdateToken = value })
+    }
+}
+
+extension CollectionView {
+    /// Set unsafe flags for the collection view.
+    public func unsafeFlags(_ flags: _CollectionViewConfiguration.UnsafeFlags) -> Self {
+        then({ $0._collectionViewConfiguration.unsafeFlags.formUnion(flags) })
+    }
+    
+    public func _ignorePreferredCellLayoutAttributes() -> Self {
+        then({ $0._collectionViewConfiguration.unsafeFlags.formUnion(.ignorePreferredCellLayoutAttributes) })
+    }
+    
     /// Fixes this view at its ideal size.
     public func fixedSize() -> Self {
         then({ $0._collectionViewConfiguration.fixedSize = (true, true) })
@@ -301,9 +316,7 @@ extension CollectionView {
     ) -> Self {
         then({ $0._dynamicViewContentTraitValues.onDrop = action })
     }
-}
-
-extension CollectionView {
+    
     /// Sets whether the collection view allows multiple selection.
     public func allowsMultipleSelection(_ allowsMultipleSelection: Bool) -> Self {
         then({ $0._collectionViewConfiguration.allowsMultipleSelection = allowsMultipleSelection })
@@ -387,12 +400,6 @@ extension CollectionView {
     @available(tvOS, unavailable)
     public func refreshControlTintColor(_ color: Color?) -> Self {
         then({ $0._scrollViewConfiguration.refreshControlTintColor = color?.toUIColor() })
-    }
-}
-
-extension CollectionView {
-    public func _ignorePreferredCellLayoutAttributes() -> Self {
-        then({ $0._collectionViewConfiguration._ignorePreferredCellLayoutAttributes = true })
     }
 }
 

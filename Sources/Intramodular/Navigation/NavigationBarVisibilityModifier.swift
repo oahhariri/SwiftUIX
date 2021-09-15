@@ -6,31 +6,38 @@ import Swift
 import SwiftUI
 
 private struct HideNavigationBar: ViewModifier {
-    @State var isNavigationBarHidden = false
+    @State private var isVisible: Bool = false
     
     func body(content: Content) -> some View {
         #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst)
         return content
             .background {
-                if isNavigationBarHidden {
+                PassthroughView {
                     #if os(iOS)
                     ZeroSizeView()
-                        .navigationBarHidden(isNavigationBarHidden)
                         .navigationBarTitle(Text(String()), displayMode: .inline)
+                        .navigationBarBackButtonHidden(true)
+                        .navigationBarHidden(true)
                     #elseif os(tvOS)
                     ZeroSizeView()
-                        .navigationBarHidden(isNavigationBarHidden)
+                        .navigationBarHidden(true)
                     #endif
                 }
             }
-            ._configureUINavigationController {
-                $0.setNavigationBarHidden(true, animated: false)
-            }
-            .onAppear {
-                isNavigationBarHidden = true
-            }
-            .onDisappear {
-                isNavigationBarHidden = false
+            .onAppKitOrUIKitViewControllerResolution {
+                guard isVisible else {
+                    return
+                }
+                
+                $0.navigationController?.setNavigationBarHidden(true, animated: false)
+                $0.navigationController?.navigationBar.isHidden = true
+            } onAppear: {
+                isVisible = true
+                
+                $0.navigationController?.setNavigationBarHidden(true, animated: false)
+                $0.navigationController?.navigationBar.isHidden = true
+            } onDisappear: { _ in
+                isVisible = false
             }
         #else
         return content
@@ -41,6 +48,7 @@ private struct HideNavigationBar: ViewModifier {
 // MARK: - API -
 
 extension View {
+    /// Hides the navigation bar for this view. Really.
     @available(macOS, unavailable)
     @inline(never)
     public func hideNavigationBar() -> some View {

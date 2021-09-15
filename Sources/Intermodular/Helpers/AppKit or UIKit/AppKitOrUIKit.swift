@@ -40,7 +40,22 @@ public typealias AppKitOrUIKitViewController = UIViewController
 public typealias AppKitOrUIKitWindow = UIWindow
 
 extension UIEdgeInsets {
-    var edgeInsets: EdgeInsets { .init(top: top, leading: left, bottom: bottom, trailing: right) }
+    var edgeInsets: EdgeInsets {
+        .init(top: top, leading: left, bottom: bottom, trailing: right)
+    }
+}
+
+extension UIUserInterfaceStyle {
+    public init(from colorScheme: ColorScheme) {
+        switch colorScheme {
+            case .light:
+                self = .light
+            case .dark:
+                self = .dark
+            default:
+                self = .unspecified
+        }
+    }
 }
 
 #endif
@@ -163,9 +178,9 @@ extension EnvironmentValues {
     
     var _appKitOrUIKitViewControllerBox: ObservableWeakReferenceBox<AppKitOrUIKitViewController>? {
         get {
-            self[DefaultEnvironmentKey<ObservableWeakReferenceBox<AppKitOrUIKitViewController>>]
+            self[DefaultEnvironmentKey<ObservableWeakReferenceBox<AppKitOrUIKitViewController>>.self]
         } set {
-            self[DefaultEnvironmentKey<ObservableWeakReferenceBox<AppKitOrUIKitViewController>>] = newValue
+            self[DefaultEnvironmentKey<ObservableWeakReferenceBox<AppKitOrUIKitViewController>>.self] = newValue
         }
     }
 }
@@ -202,36 +217,3 @@ public struct AppKitOrUIKitViewControllerAdaptor<AppKitOrUIKitViewControllerType
 }
 
 #endif
-
-struct _ResolveAppKitOrUIKitViewController: ViewModifier {
-    #if os(iOS) || os(macOS) || os(tvOS) || targetEnvironment(macCatalyst)
-    @State var _appKitOrUIKitViewControllerBox = ObservableWeakReferenceBox<AppKitOrUIKitViewController>(nil)
-    @State var presentationCoordinatorBox =
-        ObservableWeakReferenceBox<CocoaPresentationCoordinator>(nil)
-    
-    func body(content: Content) -> some View {
-        #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst)
-        return content
-            .modifier(_UseCocoaPresentationCoordinator(coordinator: presentationCoordinatorBox))
-            .environment(\._appKitOrUIKitViewControllerBox, _appKitOrUIKitViewControllerBox)
-            .environment(\.navigator, _appKitOrUIKitViewControllerBox.value?.navigationController)
-            .onAppKitOrUIKitViewControllerResolution { viewController in
-                if !(_appKitOrUIKitViewControllerBox.value === viewController) {
-                    _appKitOrUIKitViewControllerBox.value = viewController
-                }
-                
-                if !(presentationCoordinatorBox.value === viewController._cocoaPresentationCoordinator) {
-                    presentationCoordinatorBox.value =
-                        viewController.presentationCoordinator
-                }
-            }
-        #else
-        return content
-        #endif
-    }
-    #else
-    func body(content: Content) -> some View {
-        content
-    }
-    #endif
-}

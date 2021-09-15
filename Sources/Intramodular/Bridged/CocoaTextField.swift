@@ -28,6 +28,7 @@ public struct CocoaTextField<Label: View>: CocoaView {
         
         var isInitialFirstResponder: Bool?
         var isFirstResponder: Bool?
+        var isFocused: Binding<Bool>? = nil
         
         var focusRingType: FocusRingType = .none
         
@@ -64,7 +65,7 @@ public struct CocoaTextField<Label: View>: CocoaView {
     @available(macCatalystApplicationExtension, unavailable)
     @available(iOSApplicationExtension, unavailable)
     @available(tvOSApplicationExtension, unavailable)
-    @ObservedObject private var keyboard = Keyboard.main
+    private let keyboard = Keyboard.main
     #endif
     
     private var label: Label
@@ -73,7 +74,12 @@ public struct CocoaTextField<Label: View>: CocoaView {
     private var configuration: _Configuration
     
     public var body: some View {
-        return ZStack(alignment: Alignment(horizontal: .init(from: multilineTextAlignment), vertical: .top)) {
+        ZStack(
+            alignment: Alignment(
+                horizontal: .init(from: multilineTextAlignment),
+                vertical: .top
+            )
+        ) {
             if configuration.placeholder == nil {
                 label
                     .font(configuration.uiFont.map(Font.init) ?? font)
@@ -81,8 +87,14 @@ public struct CocoaTextField<Label: View>: CocoaView {
                     .animation(nil)
             }
             
-            _CocoaTextField<Label>(text: text, isEditing: isEditing, configuration: configuration)
+            _CocoaTextField<Label>(
+                text: text,
+                isEditing: isEditing,
+                configuration:
+                    configuration
+            )
         }
+        .background(ZeroSizeView().id(configuration.isFocused?.wrappedValue))
     }
 }
 
@@ -152,12 +164,14 @@ fileprivate struct _CocoaTextField<Label: View>: UIViewRepresentable {
         
         uiView.delegate = context.coordinator
         
-        if let isFirstResponder = configuration.isInitialFirstResponder, isFirstResponder, context.environment.isEnabled {
+        if context.environment.isEnabled {
             DispatchQueue.main.async {
-                uiView.becomeFirstResponder()
+                if (configuration.isInitialFirstResponder ?? configuration.isFocused?.wrappedValue) ?? false {
+                    uiView.becomeFirstResponder()
+                }
             }
         }
-        
+
         return uiView
     }
     
@@ -165,6 +179,7 @@ fileprivate struct _CocoaTextField<Label: View>: UIViewRepresentable {
         context.coordinator.text = text
         context.coordinator.configuration = configuration
         
+        uiView.isFirstResponderBinding = configuration.isFocused
         uiView.onDeleteBackward = configuration.onDeleteBackward
         uiView.textRect = configuration.textRect
         uiView.editingRect = configuration.editingRect
@@ -186,6 +201,7 @@ fileprivate struct _CocoaTextField<Label: View>: UIViewRepresentable {
             uiView.textAlignment = .init(context.environment.multilineTextAlignment)
             uiView.textColor = configuration.textColor ?? uiView.textColor
             uiView.textContentType = configuration.textContentType
+            uiView.tintColor = context.environment.tintColor?.toUIColor()
             
             if let kerning = configuration.kerning {
                 uiView.defaultTextAttributes.updateValue(kerning, forKey: .kern)
@@ -243,13 +259,29 @@ fileprivate struct _CocoaTextField<Label: View>: UIViewRepresentable {
             }
         }
         
-        DispatchQueue.main.async {
-            if let isFirstResponder = configuration.isFirstResponder, uiView.window != nil {
-                if isFirstResponder && !uiView.isFirstResponder, context.environment.isEnabled {
-                    uiView.becomeFirstResponder()
-                } else if !isFirstResponder && uiView.isFirstResponder {
-                    uiView.resignFirstResponder()
+        updateResponderChain: do {
+            DispatchQueue.main.async {
+                if let isFocused = configuration.isFocused, uiView.window != nil {
+                    if isFocused.wrappedValue && !uiView.isFirstResponder {
+                        uiView.becomeFirstResponder()
+                    } else if !isFocused.wrappedValue && uiView.isFirstResponder {
+                        uiView.resignFirstResponder()
+                    }
+                } else if let isFirstResponder = configuration.isFirstResponder, uiView.window != nil {
+                    if isFirstResponder && !uiView.isFirstResponder, context.environment.isEnabled {
+                        uiView.becomeFirstResponder()
+                    } else if !isFirstResponder && uiView.isFirstResponder {
+                        uiView.resignFirstResponder()
+                    }
                 }
+            }
+        }
+    }
+    
+    static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
+        if let isFocused = coordinator.configuration.isFocused {
+            if isFocused.wrappedValue {
+                isFocused.wrappedValue = false
             }
         }
     }
@@ -352,7 +384,7 @@ extension CocoaTextField {
         then({ $0.configuration.onCharactersChange = action })
     }
     
-    /// Adds an action to perform when characters are changed in this text field.
+    /// AddsUIText an action to perform when characters are changed in this text field.
     public func onCharactersChange(perform action: @escaping (CharactersChange) -> Void) -> Self {
         then({ $0.configuration.onCharactersChange = { change in action(change); return true } })
     }
@@ -365,6 +397,10 @@ extension CocoaTextField {
     
     public func isFirstResponder(_ isFirstResponder: Bool) -> Self {
         then({ $0.configuration.isFirstResponder = isFirstResponder })
+    }
+    
+    public func focused(_ isFocused: Binding<Bool>) -> Self {
+        then({ $0.configuration.isFocused = isFocused })
     }
 }
 
@@ -480,18 +516,42 @@ extension CocoaTextField where Label == Text {
 // MARK: - Auxiliary Implementation -
 
 private final class _UITextField: UITextField {
+    var isFirstResponderBinding: Binding<Bool>?
+
     var onDeleteBackward: () -> Void = { }
     
     var textRect: CocoaTextField<AnyView>.Rect?
     var editingRect: CocoaTextField<AnyView>.Rect?
     var clearButtonRect: CocoaTextField<AnyView>.Rect?
-    
+        
     override init(frame: CGRect) {
         super.init(frame: frame)
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+    
+    @discardableResult
+    override func becomeFirstResponder() -> Bool {
+        defer {
+            if isFirstResponderBinding?.wrappedValue != isFirstResponder {
+                isFirstResponderBinding?.wrappedValue = isFirstResponder
+            }
+        }
+
+        return super.becomeFirstResponder()
+    }
+    
+    @discardableResult
+    override func resignFirstResponder() -> Bool {
+        defer {
+            if isFirstResponderBinding?.wrappedValue != isFirstResponder {
+                isFirstResponderBinding?.wrappedValue = isFirstResponder
+            }
+        }
+        
+       return super.resignFirstResponder()
     }
     
     override func deleteBackward() {

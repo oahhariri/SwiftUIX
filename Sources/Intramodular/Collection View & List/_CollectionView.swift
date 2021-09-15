@@ -82,7 +82,7 @@ struct _CollectionView<
     
     typealias Configuration = _CollectionViewConfiguration
     
-    private let dataSource: UIViewControllerType.DataSource
+    private let dataSourcePayload: UIViewControllerType.DataSource.Payload
     private let dataSourceConfiguration: DataSourceConfiguration
     private let viewProvider: ViewProvider
     
@@ -125,9 +125,26 @@ struct _CollectionView<
         uiViewController.configuration = context.environment._collectionViewConfiguration
         uiViewController.viewProvider = viewProvider
         
-        uiViewController.dataSource = dataSource
+        if let oldUpdateToken = context.coordinator.dataSourceUpdateToken, let currentUpdateToken =
+            context.environment._collectionViewConfiguration.dataSourceUpdateToken {
+            if oldUpdateToken != currentUpdateToken {
+                uiViewController.dataSource = dataSourcePayload
+                uiViewController.refreshVisibleCellsAndSupplementaryViews()
+            }
+        } else {
+            uiViewController.dataSource = dataSourcePayload
+            uiViewController.refreshVisibleCellsAndSupplementaryViews()
+        }
         
-        uiViewController.refreshVisibleCellsAndSupplementaryViews()
+        context.coordinator.dataSourceUpdateToken = context.environment._collectionViewConfiguration.dataSourceUpdateToken
+    }
+    
+    class Coordinator {
+        var dataSourceUpdateToken: AnyHashable?
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        .init()
     }
 }
 
@@ -147,7 +164,7 @@ extension _CollectionView {
         ItemIdentifierType == _IdentifierHashedValue<ItemType>,
         Data.Element == ListSection<SectionType, ItemType>
     {
-        self.dataSource = .static(.init(data))
+        self.dataSourcePayload = .static(.init(data))
         self.dataSourceConfiguration = .init(
             identifierMap: .init(
                 getSectionID: { .init($0) },
@@ -164,7 +181,7 @@ extension _CollectionView {
     }
     
     init(
-        _ dataSource: UIViewControllerType.DataSource,
+        _ dataSourcePayload: UIViewControllerType.DataSource.Payload,
         sectionHeader: @escaping (SectionType) -> SectionHeader,
         sectionFooter: @escaping (SectionType) -> SectionFooter,
         rowContent: @escaping (SectionType, ItemType) -> RowContent
@@ -174,7 +191,7 @@ extension _CollectionView {
         SectionIdentifierType == SectionType,
         ItemIdentifierType == ItemType
     {
-        self.dataSource = dataSource
+        self.dataSourcePayload = dataSourcePayload
         self.dataSourceConfiguration = .init(
             identifierMap: .init(
                 getSectionID: { $0 },
