@@ -48,9 +48,12 @@ struct WindowOverlay<Content: View>: AppKitOrUIKitViewControllerRepresentable {
     
     @usableFromInline
     static func dismantleAppKitOrUIKitViewController(_ viewController: AppKitOrUIKitViewControllerType, coordinator: Coordinator) {
-        viewController.isKeyAndVisible.wrappedValue = false
-        viewController.updateWindow()
-        viewController.contentWindow = nil
+        DispatchQueue.global(qos: .userInitiated).async {
+            // do something
+            viewController.isKeyAndVisible.wrappedValue = false
+            viewController.updateWindow()
+            viewController.contentWindow = nil
+        }
     }
 }
 
