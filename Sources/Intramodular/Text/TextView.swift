@@ -241,7 +241,7 @@ extension _TextView: UIViewRepresentable {
                 uiView.font = font
             }
             
-            uiView.textAlignment = textAlignment
+            uiView.textAlignment = configuration.textAlignment
         }
         
         correctCursorOffset: do {
@@ -471,7 +471,7 @@ extension TextView where Label == EmptyView {
             isConstant: false,
             onEditingChanged: { _ in },
             onCommit: { },
-            textAlignment = textAlignment
+            textAlignment: textAlignment
         )
     }
 }
