@@ -39,7 +39,7 @@ public struct TextView<Label: View>: View {
         var keyboardType: UIKeyboardType = .default
         var returnKeyType: UIReturnKeyType?
         #endif
-        
+        var textAlignment: NSTextAlignment = .natural
         var requiresAttributedText: Bool {
             kerning != nil
         }
@@ -240,6 +240,8 @@ extension _TextView: UIViewRepresentable {
                 uiView.text = text!.wrappedValue
                 uiView.font = font
             }
+            
+            uiView.textAlignment = textAlignment
         }
         
         correctCursorOffset: do {
@@ -456,6 +458,20 @@ extension TextView where Label == EmptyView {
             isConstant: true,
             onEditingChanged: { _ in },
             onCommit: { }
+        )
+    }
+    
+    public init(
+        text: Binding<String>,
+        textAlignment: NSTextAlignment
+    ) {
+        self.label = EmptyView()
+        self.text = text
+        self.configuration = .init(
+            isConstant: false,
+            onEditingChanged: { _ in },
+            onCommit: { },
+            textAlignment = textAlignment
         )
     }
 }
