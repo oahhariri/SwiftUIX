@@ -166,7 +166,7 @@ final class UIHostingTextView<Label: View>: UITextView {
   @discardableResult
   override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
 
-      if action == #selector(UIResponderStandardEditActions.copy(_:)) || action == #selector(UIResponderStandardEditActions.selectAll(_:)) || return #selector(UIResponderStandardEditActions.select) {
+      if action == #selector(UIResponderStandardEditActions.copy(_:)) || action == #selector(UIResponderStandardEditActions.selectAll(_:)) ||  action == #selector(UIResponderStandardEditActions.select) {
               return true
           }
           return false
