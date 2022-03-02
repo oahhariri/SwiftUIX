@@ -163,6 +163,18 @@ final class UIHostingTextView<Label: View>: UITextView {
         return super.becomeFirstResponder()
     }
     
+  @discardableResult
+  override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+      defer {
+          if action == #selector(UIResponderStandardEditActions.copy()) || action == #selector(UIResponderStandardEditActions.selectAll()) || action == #selector(UIResponderStandardEditActions.select()) {
+              return true
+          }
+          return false
+
+      }
+      return super.canPerformAction
+    }
+    
     @discardableResult
     override func resignFirstResponder() -> Bool {
         defer {

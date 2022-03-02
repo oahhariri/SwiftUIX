@@ -603,6 +603,7 @@ extension TextView {
         then({ $0.configuration.returnKeyType = returnKeyType })
     }
     #endif
+    
 }
 
 #endif
