@@ -167,7 +167,6 @@ extension _TextView: UIViewRepresentable {
             uiView.isScrollEnabled = context.environment.isScrollEnabled
             uiView.isSelectable = configuration.isSelectable
             
-            uiView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         }
         
         updateLayoutConfiguration: do {
@@ -228,6 +227,8 @@ extension _TextView: UIViewRepresentable {
                         attributes[.foregroundColor] = textColor
                     }
                     
+                    uiView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+                    
                     uiView.attributedText = NSAttributedString(
                         string: text.wrappedValue,
                         attributes: attributes
@@ -239,6 +240,8 @@ extension _TextView: UIViewRepresentable {
                     }
                 }
             } else {
+                uiView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
                 uiView.text = text!.wrappedValue
                 uiView.font = font
             }
