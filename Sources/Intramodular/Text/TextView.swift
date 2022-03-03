@@ -166,6 +166,8 @@ extension _TextView: UIViewRepresentable {
             #endif
             uiView.isScrollEnabled = context.environment.isScrollEnabled
             uiView.isSelectable = configuration.isSelectable
+            
+            uiView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         }
         
         updateLayoutConfiguration: do {
