@@ -228,6 +228,9 @@ extension _TextView: UIViewRepresentable {
                     }
                     
                     uiView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+                    uiView.setContentHuggingPriority(.defaultHigh, for: .vertical)
+
+                    uiView.text = text
                     
                     uiView.attributedText = NSAttributedString(
                         string: text.wrappedValue,
@@ -241,6 +244,7 @@ extension _TextView: UIViewRepresentable {
                 }
             } else {
                 uiView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+                uiView.setContentHuggingPriority(.defaultHigh, for: .vertical)
 
                 uiView.text = text!.wrappedValue
                 uiView.font = font
