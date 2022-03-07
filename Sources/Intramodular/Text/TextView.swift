@@ -227,9 +227,9 @@ extension _TextView: UIViewRepresentable {
                         attributes[.foregroundColor] = textColor
                     }
                     
-                    uiView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-                    uiView.setContentHuggingPriority(.defaultHigh, for: .vertical)
-                    
+                    uiView.setContentHuggingPriority(.required, for: .horizontal)
+                    uiView.setContentHuggingPriority(.required, for: .vertical)
+
                     uiView.attributedText = NSAttributedString(
                         string: text.wrappedValue,
                         attributes: attributes
@@ -241,8 +241,8 @@ extension _TextView: UIViewRepresentable {
                     }
                 }
             } else {
-                uiView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-                uiView.setContentHuggingPriority(.defaultHigh, for: .vertical)
+                uiView.setContentHuggingPriority(.required, for: .horizontal)
+                uiView.setContentHuggingPriority(.required, for: .vertical)
 
                 uiView.text = text!.wrappedValue
                 uiView.font = font
