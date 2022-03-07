@@ -226,10 +226,7 @@ extension _TextView: UIViewRepresentable {
                     if let textColor = configuration.textColor {
                         attributes[.foregroundColor] = textColor
                     }
-                    
-                    uiView.setContentHuggingPriority(.required, for: .horizontal)
-                    uiView.setContentHuggingPriority(.required, for: .vertical)
-
+                                        
                     uiView.attributedText = NSAttributedString(
                         string: text.wrappedValue,
                         attributes: attributes
@@ -241,8 +238,6 @@ extension _TextView: UIViewRepresentable {
                     }
                 }
             } else {
-                uiView.setContentHuggingPriority(.required, for: .horizontal)
-                uiView.setContentHuggingPriority(.required, for: .vertical)
 
                 uiView.text = text!.wrappedValue
                 uiView.font = font
