@@ -30,6 +30,7 @@ public typealias AppKitOrUIKitLayoutAxis = NSLayoutConstraint.Axis
 public typealias AppKitOrUIKitLayoutGuide = UILayoutGuide
 public typealias AppKitOrUIKitLayoutPriority = UILayoutPriority
 public typealias AppKitOrUIKitResponder = UIResponder
+public typealias AppKitOrUIKitScrollView = UIScrollView
 public typealias AppKitOrUIKitSearchBar = UISearchBar
 public typealias AppKitOrUIKitTableView = UITableView
 public typealias AppKitOrUIKitTableViewController = UITableViewController
@@ -158,24 +159,13 @@ public let NSOpenPanel_Type = unsafeBitCast(NSClassFromString("NSOpenPanel"), to
 #if os(iOS) || os(tvOS) || os(macOS) || targetEnvironment(macCatalyst)
 
 extension EnvironmentValues {
+    @available(*, deprecated, message: "This environment value has been deprecated. Use EnvironmentValues._appKitOrUIKitViewControllerBox instead.")
     public var _appKitOrUIKitViewController: AppKitOrUIKitViewController? {
         get {
             _appKitOrUIKitViewControllerBox?.value
-        } set {
-            if let box = _appKitOrUIKitViewControllerBox {
-                box.value = newValue
-            } else {
-                _appKitOrUIKitViewControllerBox = .init(newValue)
-            }
         }
     }
-    
-    #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst)
-    public var _appKitOrUIKitWindowScene: UIWindowScene? {
-        _appKitOrUIKitViewController?.view.window?.windowScene
-    }
-    #endif
-    
+
     var _appKitOrUIKitViewControllerBox: ObservableWeakReferenceBox<AppKitOrUIKitViewController>? {
         get {
             self[DefaultEnvironmentKey<ObservableWeakReferenceBox<AppKitOrUIKitViewController>>.self]

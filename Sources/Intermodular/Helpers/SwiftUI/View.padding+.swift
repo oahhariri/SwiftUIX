@@ -9,9 +9,12 @@ import SwiftUI
 ///
 /// **Do not** reference this type directly.
 public enum _RelativePaddingAmount: CaseIterable, Hashable {
+    case extraSmall
     case small
     case regular
     case large
+    case extraLarge
+    case extraExtraLarge
 }
 
 extension View {
@@ -39,6 +42,14 @@ extension View {
         switch amount {
             case .none:
                 padding(edges)
+            case .some(.extraSmall):
+                #if os(iOS)
+                padding(edges, 4)
+                #elseif os(watchOS)
+                padding(edges, 2)
+                #else
+                padding(edges, 4)
+                #endif
             case .some(.small):
                 #if os(iOS)
                 padding(edges, 8)
@@ -51,6 +62,10 @@ extension View {
                 padding(edges)
             case .some(.large):
                 padding(edges).padding(edges)
+            case .some(.extraLarge):
+                padding(edges).padding(edges).padding(edges)
+            case .some(.extraExtraLarge):
+                padding(edges).padding(edges).padding(edges).padding(edges)
         }
     }
     

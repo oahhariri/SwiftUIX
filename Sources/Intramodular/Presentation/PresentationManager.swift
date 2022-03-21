@@ -33,6 +33,12 @@ extension PresentationMode {
     }
 }
 
+extension DynamicAction where Self == PresentationMode.DismissPresentationAction {
+    public static var dismissPresentation: Self {
+        .init()
+    }
+}
+
 public struct BooleanPresentationManager: PresentationManager  {
     @Binding public var isPresented: Bool
     
@@ -65,7 +71,7 @@ extension EnvironmentValues {
                 return presentationMode
             } else {
                 return self[_PresentationManagerEnvironmentKey.self]
-                    ?? (_appKitOrUIKitViewController?._cocoaPresentationCoordinator).flatMap({ CocoaPresentationMode(coordinator: $0) })
+                ?? (_appKitOrUIKitViewControllerBox?.value?._cocoaPresentationCoordinator).flatMap({ CocoaPresentationMode(coordinator: $0) })
                     ?? presentationMode
             }
             #else
@@ -78,6 +84,27 @@ extension EnvironmentValues {
 }
 
 // MARK: - Conformances -
+
+public struct AnyPresentationManager: PresentationManager {
+    private let isPresentedImpl: () -> Bool
+    private let dismissImpl: () -> Void
+    
+    public var isPresented: Bool {
+        isPresentedImpl()
+    }
+    
+    public init(
+        isPresented: @escaping () -> Bool,
+        dismiss: @escaping () -> Void
+    ) {
+        self.isPresentedImpl = isPresented
+        self.dismissImpl = dismiss
+    }
+
+    public func dismiss() {
+        dismissImpl()
+    }
+}
 
 extension Binding: PresentationManager where Value == PresentationMode {
     public var isPresented: Bool {

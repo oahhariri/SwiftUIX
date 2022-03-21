@@ -35,6 +35,8 @@ class UIHostingPageViewController<Page: View>: UIPageViewController, _opaque_UIH
     var content: AnyForEach<Page>? {
         didSet {
             if let content = content {
+                preheatViewControllersCache()
+
                 if let oldValue = oldValue, oldValue.count != content.count {
                     cachedChildren = [:]
                     
@@ -45,13 +47,13 @@ class UIHostingPageViewController<Page: View>: UIPageViewController, _opaque_UIH
                             animated: false
                         )
                     }
-                    
-                    for index in content.data.indices {
-                        _ = viewController(for: index)
-                    }
                 } else {
-                    for viewController in (viewControllers ?? []).map({ $0 as! PageContentController }) {
-                        viewController.mainView.page = content.content(content.data[viewController.mainView.index])
+                    if let viewControllers = viewControllers?.compactMap({ $0 as? PageContentController }), let firstViewController = viewControllers.first, !viewControllers.isEmpty {
+                        for viewController in viewControllers {
+                            _withoutAppKitOrUIKitAnimation(!(viewController === firstViewController)) {
+                                viewController.mainView.page = content.content(content.data[viewController.mainView.index])
+                            }
+                        }
                     }
                 }
             }
@@ -124,6 +126,18 @@ class UIHostingPageViewController<Page: View>: UIPageViewController, _opaque_UIH
         }
         
         return content?.data.index(after: currentPageIndex)
+    }
+    
+    private func preheatViewControllersCache() {
+        guard let content = content else {
+            return
+        }
+        
+        if content.data.count <= 4 {
+            for index in content.data.indices {
+                _ = viewController(for: index)
+            }
+        }
     }
     
     public override func viewDidLoad() {

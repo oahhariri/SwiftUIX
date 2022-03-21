@@ -10,7 +10,6 @@ import SwiftUI
 
 protocol _CollectionViewProxyBase: AppKitOrUIKitViewController {
     var collectionViewContentSize: CGSize { get }
-    var maximumCollectionViewCellSize: OptionalDimensions { get }
     
     func invalidateLayout()
     
@@ -45,18 +44,18 @@ public struct CollectionViewProxy: Hashable {
         get {
             _baseBox.value as? _CollectionViewProxyBase
         } set {
+            guard _baseBox.value !== newValue else {
+                return
+            }
+
             _baseBox.value = newValue
-            
+
             onBaseChange?()
         }
     }
     
     public var contentSize: CGSize {
         base?.collectionViewContentSize ?? .zero
-    }
-    
-    public var maximumCellSize: OptionalDimensions {
-        base?.maximumCollectionViewCellSize ?? nil
     }
     
     init(_ base: _CollectionViewProxyBase? = nil) {
@@ -156,8 +155,10 @@ public struct CollectionViewReader<Content: View>: View {
             .environment(\._collectionViewProxy, $_collectionViewProxy)
             .background {
                 PerformAction {
-                    _collectionViewProxy.onBaseChange = {
-                        invalidate.toggle()
+                    if _collectionViewProxy.onBaseChange == nil {
+                        _collectionViewProxy.onBaseChange = {
+                            invalidate.toggle()
+                        }
                     }
                 }
                 .id(invalidate)

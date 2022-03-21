@@ -22,7 +22,7 @@ extension View {
     }
 }
 
-// MARK: View.background
+// MARK: - View.background
 
 extension View {
     @_disfavoredOverload
@@ -68,6 +68,8 @@ extension View {
     }
 }
 
+// MARK: - View.overlay
+
 extension View {
     @_disfavoredOverload
     @inlinable
@@ -79,9 +81,10 @@ extension View {
     }
 }
 
-// MARK: View.hidden
+// MARK: - View.hidden
 
 extension View {
+    /// Hides this view conditionally.
     @inlinable
     public func hidden(_ isHidden: Bool) -> some View {
         Group {
@@ -118,7 +121,7 @@ extension View {
     }
 }
 
-// MARK: View.padding
+// MARK: - View.padding
 
 extension View {
     /// A view that pads this view inside the specified edge insets with a system-calculated amount of padding and a color.
@@ -126,5 +129,36 @@ extension View {
     @inlinable
     public func padding(_ color: Color) -> some View {
         padding().background(color)
+    }
+}
+
+// MARK: - View.transition
+
+extension View {
+    /// Associates a transition with the view.
+    public func transition(_ makeTransition: () -> AnyTransition) -> some View {
+        self.transition(makeTransition())
+    }
+    
+    /// Associates an insertion transition and a removal transition with the view.
+    public func asymmetricTransition(
+        insertion: AnyTransition = .identity,
+        removal: AnyTransition = .identity
+    ) -> some View {
+        transition(.asymmetric(insertion: insertion, removal: removal))
+    }
+}
+
+// MARK: - Debugging -
+
+extension View {
+    public func _printingChanges() -> Self {
+        if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
+            Self._printChanges()
+
+            return self
+        } else {
+            return self
+        }
     }
 }

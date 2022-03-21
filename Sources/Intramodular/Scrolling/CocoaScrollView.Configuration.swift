@@ -9,12 +9,10 @@ import SwiftUI
 
 /// The properties of a `CocoaScrollView` instance.
 public struct CocoaScrollViewConfiguration<Content: View> {
-    @usableFromInline
     var hasChanged: Bool = true
     
     // MARK: General
     
-    @usableFromInline
     var initialContentAlignment: Alignment? {
         didSet {
             if oldValue != initialContentAlignment {
@@ -23,7 +21,6 @@ public struct CocoaScrollViewConfiguration<Content: View> {
         }
     }
     
-    @usableFromInline
     var axes: Axis.Set = [.vertical] {
         didSet {
             if oldValue != axes {
@@ -32,7 +29,6 @@ public struct CocoaScrollViewConfiguration<Content: View> {
         }
     }
     
-    @usableFromInline
     var showsVerticalScrollIndicator: Bool = true {
         didSet {
             if oldValue != showsVerticalScrollIndicator {
@@ -41,7 +37,6 @@ public struct CocoaScrollViewConfiguration<Content: View> {
         }
     }
     
-    @usableFromInline
     var showsHorizontalScrollIndicator: Bool = true {
         didSet {
             if oldValue != showsHorizontalScrollIndicator {
@@ -50,7 +45,6 @@ public struct CocoaScrollViewConfiguration<Content: View> {
         }
     }
     
-    @usableFromInline
     var scrollIndicatorInsets: (horizontal: EdgeInsets, vertical: EdgeInsets) = (.zero, .zero) {
         didSet {
             if oldValue != scrollIndicatorInsets {
@@ -58,8 +52,15 @@ public struct CocoaScrollViewConfiguration<Content: View> {
             }
         }
     }
-    
-    @usableFromInline
+
+    var decelerationRate: UIScrollView.DecelerationRate = .normal {
+        didSet {
+            if oldValue != decelerationRate {
+                hasChanged = true
+            }
+        }
+    }
+
     var alwaysBounceVertical: Bool? = nil {
         didSet {
             if oldValue != alwaysBounceVertical {
@@ -68,7 +69,6 @@ public struct CocoaScrollViewConfiguration<Content: View> {
         }
     }
     
-    @usableFromInline
     var alwaysBounceHorizontal: Bool? = nil {
         didSet {
             if oldValue != alwaysBounceHorizontal {
@@ -77,7 +77,6 @@ public struct CocoaScrollViewConfiguration<Content: View> {
         }
     }
     
-    @usableFromInline
     var isDirectionalLockEnabled: Bool = false {
         didSet {
             if oldValue != isDirectionalLockEnabled {
@@ -86,7 +85,6 @@ public struct CocoaScrollViewConfiguration<Content: View> {
         }
     }
     
-    @usableFromInline
     var isPagingEnabled: Bool = false {
         didSet {
             if oldValue != isPagingEnabled {
@@ -95,7 +93,6 @@ public struct CocoaScrollViewConfiguration<Content: View> {
         }
     }
     
-    @usableFromInline
     var isScrollEnabled: Bool = true {
         didSet {
             if oldValue != isScrollEnabled {
@@ -104,7 +101,6 @@ public struct CocoaScrollViewConfiguration<Content: View> {
         }
     }
     
-    @usableFromInline
     var onOffsetChange: ((ScrollView<Content>.ContentOffset) -> ())? = nil {
         didSet {
             if (oldValue == nil) != (onOffsetChange == nil) {
@@ -115,7 +111,6 @@ public struct CocoaScrollViewConfiguration<Content: View> {
     
     // MARK: Content
     
-    @usableFromInline
     var contentOffset: Binding<CGPoint>? = nil {
         didSet {
             if (oldValue == nil) != (contentOffset == nil) {
@@ -124,7 +119,6 @@ public struct CocoaScrollViewConfiguration<Content: View> {
         }
     }
     
-    @usableFromInline
     var contentInset: EdgeInsets = .zero {
         didSet {
             if oldValue != contentInset {
@@ -133,7 +127,6 @@ public struct CocoaScrollViewConfiguration<Content: View> {
         }
     }
     
-    @usableFromInline
     var contentInsetAdjustmentBehavior: UIScrollView.ContentInsetAdjustmentBehavior? {
         didSet {
             if oldValue != contentInsetAdjustmentBehavior {
@@ -142,7 +135,6 @@ public struct CocoaScrollViewConfiguration<Content: View> {
         }
     }
     
-    @usableFromInline
     var contentOffsetBehavior: ScrollContentOffsetBehavior = [] {
         didSet {
             if oldValue != contentOffsetBehavior {
@@ -153,7 +145,6 @@ public struct CocoaScrollViewConfiguration<Content: View> {
     
     // MARK: Refresh
     
-    @usableFromInline
     var onRefresh: (() -> Void)? {
         didSet {
             if (oldValue == nil) != (onRefresh == nil) {
@@ -162,7 +153,6 @@ public struct CocoaScrollViewConfiguration<Content: View> {
         }
     }
     
-    @usableFromInline
     var isRefreshing: Bool? {
         didSet {
             if oldValue != isRefreshing {
@@ -171,7 +161,6 @@ public struct CocoaScrollViewConfiguration<Content: View> {
         }
     }
     
-    @usableFromInline
     var refreshControlTintColor: UIColor? {
         didSet {
             if oldValue != refreshControlTintColor {
@@ -182,7 +171,6 @@ public struct CocoaScrollViewConfiguration<Content: View> {
     
     // MARK: Keyboard
     
-    @usableFromInline
     @available(tvOS, unavailable)
     var keyboardDismissMode: UIScrollView.KeyboardDismissMode = .none {
         didSet {
@@ -246,23 +234,21 @@ extension UIScrollView {
         }
         
         if let alwaysBounceVertical = configuration.alwaysBounceVertical {
-            self.alwaysBounceVertical = alwaysBounceVertical
+            assignIfNotEqual(alwaysBounceVertical, to: &self.alwaysBounceVertical)
         }
         
         if let alwaysBounceHorizontal = configuration.alwaysBounceHorizontal {
-            self.alwaysBounceHorizontal = alwaysBounceHorizontal
+            assignIfNotEqual(alwaysBounceHorizontal, to: &self.alwaysBounceHorizontal)
         }
-        
-        isDirectionalLockEnabled = configuration.isDirectionalLockEnabled
-        isScrollEnabled = configuration.isScrollEnabled
-        showsVerticalScrollIndicator = configuration.showsVerticalScrollIndicator
-        showsHorizontalScrollIndicator = configuration.showsHorizontalScrollIndicator
-        horizontalScrollIndicatorInsets = .init(configuration.scrollIndicatorInsets.horizontal)
-        verticalScrollIndicatorInsets = .init(configuration.scrollIndicatorInsets.vertical)
-
-        if contentInset != .init(configuration.contentInset) {
-            contentInset = .init(configuration.contentInset)
-        }
+                
+        assignIfNotEqual(configuration.isDirectionalLockEnabled, to: &isDirectionalLockEnabled)
+        assignIfNotEqual(configuration.isScrollEnabled, to: &isScrollEnabled)
+        assignIfNotEqual(configuration.showsVerticalScrollIndicator, to: &showsVerticalScrollIndicator)
+        assignIfNotEqual(configuration.showsHorizontalScrollIndicator, to: &showsHorizontalScrollIndicator)
+        assignIfNotEqual(.init(configuration.scrollIndicatorInsets.horizontal), to: &horizontalScrollIndicatorInsets)
+        assignIfNotEqual(.init(configuration.scrollIndicatorInsets.vertical), to: &verticalScrollIndicatorInsets)
+        assignIfNotEqual(configuration.decelerationRate, to: &decelerationRate)
+        assignIfNotEqual(.init(configuration.contentInset), to: &self.contentInset)
         
         if let contentInsetAdjustmentBehavior = configuration.contentInsetAdjustmentBehavior {
             self.contentInsetAdjustmentBehavior = contentInsetAdjustmentBehavior

@@ -7,7 +7,7 @@ import Swift
 import SwiftUI
 
 /// A type that manages view presentation.
-public protocol DynamicViewPresenter: DynamicViewPresentable, EnvironmentProvider {
+public protocol DynamicViewPresenter: DynamicViewPresentable {
     #if os(iOS) || os(macOS) || os(tvOS) || targetEnvironment(macCatalyst)
     /// The presentation coordinator for this presenter.
     var _cocoaPresentationCoordinator: CocoaPresentationCoordinator { get }
@@ -24,9 +24,6 @@ public protocol DynamicViewPresenter: DynamicViewPresentable, EnvironmentProvide
     
     @discardableResult
     func dismissSelf(withAnimation _: Animation?) -> Future<Bool, Never>
-    
-    @discardableResult
-    func dismissSelf() -> Future<Bool, Never>
 }
 
 // MARK: - Implementation -
@@ -71,8 +68,16 @@ extension DynamicViewPresenter {
         present(modal, completion: { })
     }
     
+    public func present(_ view: AnyPresentationView) {
+        present(AnyModalPresentation(content: view), completion: { })
+    }
+    
     public func presentOnTop(_ modal: AnyModalPresentation) {
         topmostPresenter.present(modal, completion: { })
+    }
+    
+    public func presentOnTop(_ view: AnyPresentationView) {
+        topmostPresenter.present(AnyModalPresentation(content: view), completion: { })
     }
     
     public func present<Content: View>(@ViewBuilder content: () -> Content) {
@@ -81,7 +86,7 @@ extension DynamicViewPresenter {
     
     public func present<V: View>(
         _ view: V,
-        named name: ViewName? = nil,
+        named name: AnyHashable? = nil,
         onDismiss: @escaping () -> Void = { },
         presentationStyle: ModalPresentationStyle? = nil,
         completion: @escaping () -> Void = { }
@@ -100,7 +105,7 @@ extension DynamicViewPresenter {
     
     public func presentOnTop<V: View>(
         _ view: V,
-        named name: ViewName? = nil,
+        named name: AnyHashable? = nil,
         onDismiss: @escaping () -> Void = { },
         presentationStyle: ModalPresentationStyle? = nil,
         completion: @escaping () -> () = { }
@@ -137,7 +142,7 @@ extension DynamicViewPresenter {
     }
     
     @discardableResult
-    public func dismissView(named name: ViewName) -> Future<Bool, Never> {
+    public func dismissView(named name: AnyHashable) -> Future<Bool, Never> {
         var presenter: DynamicViewPresenter? = self.presenter ?? self
         
         while let presented = presenter {

@@ -15,19 +15,22 @@ public protocol DynamicAction: DynamicProperty {
 
 // MARK: - API -
 
+extension DynamicAction {
+    public func then(_ action: @escaping () -> Void) -> _ExtendedDynamicAction<Self> {
+        _ExtendedDynamicAction(action: self, additionalAction: Action(action))
+    }
+}
+
 extension PerformActionView {
-    @inlinable
-    public func insertAction<A: DynamicAction>(_ action: A) -> InsertDynamicAction<Self, A> {
+    public func insertAction<A: DynamicAction>(_ action: A) -> _InsertDynamicAction<Self, A> {
         .init(base: self, action: action)
     }
-    
-    @inlinable
-    public func appendAction<A: DynamicAction>(_ action: A) -> AppendDynamicAction<Self, A> {
+
+    public func appendAction<A: DynamicAction>(_ action: A) -> _AppendDynamicAction<Self, A> {
         .init(base: self, action: action)
     }
-    
-    @inlinable
-    public func addAction<A: DynamicAction>(_ action: A) -> AddDynamicAction<Self, A> {
+
+    public func addAction<A: DynamicAction>(_ action: A) -> _AddDynamicAction<Self, A> {
         .init(base: self, action: action)
     }
 }
@@ -35,12 +38,12 @@ extension PerformActionView {
 public struct WithDynamicAction<Action: DynamicAction, Content: View>: View {
     public let action: Action
     public let content: (Action) -> Content
-    
+
     public init(_ action: Action, _ content: @escaping (Action) -> Content) {
         self.action = action
         self.content = content
     }
-    
+
     public var body: some View {
         content(action)
     }
@@ -49,7 +52,7 @@ public struct WithDynamicAction<Action: DynamicAction, Content: View>: View {
 public struct DynamicActionButton<Action: DynamicAction, Label: View>: View {
     public let action: Action
     public let label: Label
-    
+
     public init(
         action: Action,
         @ViewBuilder label: () -> Label
@@ -57,7 +60,7 @@ public struct DynamicActionButton<Action: DynamicAction, Label: View>: View {
         self.action = action
         self.label = label()
     }
-    
+
     public var body: some View {
         Button(action: action.perform) {
             label
@@ -66,13 +69,30 @@ public struct DynamicActionButton<Action: DynamicAction, Label: View>: View {
 }
 
 extension View {
+    /// Adds an action to perform when this view recognizes a tap gesture.
+    @available(iOS 13.0, macOS 10.15, watchOS 6.0, *)
+    @available(tvOS, unavailable)
+    public func onTapGesture<A: DynamicAction>(perform action: A) -> some View {
+        modifier(_AddDynamicActionOnTapGesture(action: action))
+    }
+}
+
+extension View {
+    /// Adds an action to perform when this view is pressed.
+    ///
+    /// - Parameters:
+    ///    - action: The action to perform.
     public func onPress<A: DynamicAction>(perform action: A) -> some View {
         DynamicActionButton(action: action) {
             self
         }
         .buttonStyle(PlainButtonStyle())
     }
-    
+
+    /// Adds an action to perform when this view is pressed.
+    ///
+    /// - Parameters:
+    ///    - action: The action to perform.
     public func onPress(perform action: @escaping () -> Void) -> some View {
         onPress(perform: Action(action))
     }
@@ -80,46 +100,51 @@ extension View {
 
 // MARK: - Auxiliary Implementation -
 
-public struct InsertDynamicAction<Base: PerformActionView, Action: DynamicAction>: View {
-    public let base: Base
-    public let action: Action
+public struct _ExtendedDynamicAction<A: DynamicAction>: DynamicAction {
+    let action: A
+    let additionalAction: Action
     
-    public init(base: Base, action: Action) {
-        self.base = base
-        self.action = action
+    public func perform() {
+        action.perform()
+        
+        additionalAction.perform()
     }
-    
-    @inlinable
+}
+
+@available(iOS 13.0, macOS 10.15, watchOS 6.0, *)
+@available(tvOS, unavailable)
+struct _AddDynamicActionOnTapGesture<Action: DynamicAction>: ViewModifier {
+    let action: Action
+
+    func body(content: Content) -> some View {
+        content.onTapGesture {
+            action.perform()
+        }
+    }
+}
+
+public struct _InsertDynamicAction<Base: PerformActionView, Action: DynamicAction>: View {
+    let base: Base
+    let action: Action
+
     public var body: some View {
         base.transformAction({ $0.insert(action.perform) })
     }
 }
 
-public struct AppendDynamicAction<Base: PerformActionView, Action: DynamicAction>: View {
-    public let base: Base
-    public let action: Action
-    
-    public init(base: Base, action: Action) {
-        self.base = base
-        self.action = action
-    }
-    
-    @inlinable
+public struct _AppendDynamicAction<Base: PerformActionView, Action: DynamicAction>: View {
+    let base: Base
+    let action: Action
+
     public var body: some View {
         base.transformAction({ $0.insert(action.perform) })
     }
 }
 
-public struct AddDynamicAction<Base: PerformActionView, Action: DynamicAction>: View {
-    public let base: Base
-    public let action: Action
-    
-    public init(base: Base, action: Action) {
-        self.base = base
-        self.action = action
-    }
-    
-    @inlinable
+public struct _AddDynamicAction<Base: PerformActionView, Action: DynamicAction>: View {
+    let base: Base
+    let action: Action
+
     public var body: some View {
         base.addAction(action)
     }

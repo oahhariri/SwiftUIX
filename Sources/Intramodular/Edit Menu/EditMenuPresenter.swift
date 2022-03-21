@@ -14,12 +14,13 @@ private struct EditMenuPresenter: ViewModifier {
     let editMenuItems: () -> [EditMenuItem]
     
     func body(content: Content) -> some View {
-        content.background {
-            _BackgroundPresenterView(
-                isVisible: $isVisible,
-                attachmentAnchor: attachmentAnchor,
-                editMenuItems: editMenuItems
-            )
+        content
+            .background {
+                _BackgroundPresenterView(
+                    isVisible: $isVisible,
+                    attachmentAnchor: attachmentAnchor,
+                    editMenuItems: editMenuItems
+                )
             .allowsHitTesting(false)
             .accessibility(hidden: true)
         }
@@ -82,7 +83,6 @@ extension EditMenuPresenter._BackgroundPresenterView {
         var attachmentAnchor: UnitPoint?
         var editMenuItems: () -> [EditMenuItem] = { [] }
         
-        private var menuController: UIMenuController? = nil
         private var itemIndexToActionMap: [Int: Action]?
         
         override var canBecomeFirstResponder: Bool {
@@ -104,23 +104,16 @@ extension EditMenuPresenter._BackgroundPresenterView {
         }
         
         @objc func showMenu(sender _: AnyObject?) {
-            if let menuController = menuController {
-                guard !menuController.isMenuVisible else {
-                    return
-                }
-            }
-            
             becomeFirstResponder()
             
             itemIndexToActionMap = [:]
             
             let items = editMenuItems()
-            let menuController = UIMenuController()
             
-            menuController.menuItems = items.enumerated().map { (index, item) in
+            UIMenuController.shared.menuItems = items.enumerated().map { [weak self] (index, item) in
                 let selector = Selector("performActionForEditMenuItemAtIndex\(index.description)")
                 
-                itemIndexToActionMap?[index] = item.action
+                self?.itemIndexToActionMap?[index] = item.action
                 
                 let item = UIMenuItem(
                     title: item.title,
@@ -130,9 +123,7 @@ extension EditMenuPresenter._BackgroundPresenterView {
                 return item
             }
             
-            menuController.showMenu(from: self, rect: frame)
-            
-            self.menuController = menuController
+            UIMenuController.shared.showMenu(from: self, rect: frame)
         }
         
         @objc func didHideEditMenu(_ sender: AnyObject?) {
@@ -145,8 +136,8 @@ extension EditMenuPresenter._BackgroundPresenterView {
                     resignFirstResponder()
                 }
             }
-            
-            menuController = nil
+
+            UIMenuController.shared.menuItems = nil
         }
         
         override func canPerformAction(_ action: Selector, withSender _: Any?) -> Bool {
@@ -178,7 +169,7 @@ extension EditMenuPresenter._BackgroundPresenterView {
         }
         
         @objc(performActionForEditMenuItemAtIndex4)
-        func performActionForEditMenuItemAtIndex4() {
+        private func performActionForEditMenuItemAtIndex4() {
             performActionForEditMenuItemAtIndex(4)
         }
         

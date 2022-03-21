@@ -27,6 +27,7 @@ public struct TextView<Label: View>: View {
         #endif
         var font: AppKitOrUIKitFont?
         var textColor: AppKitOrUIKitColor?
+		var tintColor: AppKitOrUIKitColor?
         var kerning: CGFloat?
         var linkForegroundColor: AppKitOrUIKitColor?
         var textContainerInset: AppKitOrUIKitInsets = .zero
@@ -131,7 +132,7 @@ extension _TextView: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: UIViewType, context: Context) {
-        _withoutAnimation_AppKitOrUIKit(context.transaction.isAnimated) {
+        _withoutAppKitOrUIKitAnimation(context.transaction.animation == nil) {
             if let uiView = uiView as? UIHostingTextView<Label> {
                 uiView._isSwiftUIRuntimeUpdateActive = true
                 
@@ -183,13 +184,19 @@ extension _TextView: UIViewRepresentable {
             let font: UIFont = configuration.font ?? context.environment.font?.toUIFont() ?? .preferredFont(forTextStyle: .body)
             
             if let textColor = configuration.textColor {
-                uiView.textColor = textColor
+                assignIfNotEqual(textColor, to: &uiView.textColor)
             }
+			
+			if let tintColor = configuration.tintColor {
+                assignIfNotEqual(tintColor, to: &uiView.tintColor)
+			}
             
             if let linkForegroundColor = configuration.linkForegroundColor {
-                uiView.linkTextAttributes[.foregroundColor] = linkForegroundColor
+                assignIfNotEqual(linkForegroundColor, to: &uiView.linkTextAttributes[.foregroundColor])
             } else {
-                uiView.linkTextAttributes[.foregroundColor] = nil
+                if uiView.linkTextAttributes[.foregroundColor] != nil {
+                    uiView.linkTextAttributes[.foregroundColor] = nil
+                }
             }
             
             uiView.textContentType = configuration.textContentType
@@ -205,10 +212,10 @@ extension _TextView: UIViewRepresentable {
             
             if requiresAttributedText {
                 let paragraphStyle = NSMutableParagraphStyle()
-                
-                paragraphStyle.lineBreakMode = context.environment.lineBreakMode
-                paragraphStyle.lineSpacing = context.environment.lineSpacing
-                
+
+                assignIfNotEqual(context.environment.lineBreakMode, to: &paragraphStyle.lineBreakMode)
+                assignIfNotEqual(context.environment.lineSpacing, to: &paragraphStyle.lineSpacing)
+
                 context.environment._paragraphSpacing.map {
                     paragraphStyle.paragraphSpacing = $0
                 }
@@ -220,11 +227,11 @@ extension _TextView: UIViewRepresentable {
                     ]
                     
                     if let kerning = configuration.kerning {
-                        attributes[.kern] = kerning
+                        assignIfNotEqual(kerning, to: &attributes[.kern])
                     }
                     
                     if let textColor = configuration.textColor {
-                        attributes[.foregroundColor] = textColor
+                        assignIfNotEqual(textColor, to: &attributes[.foregroundColor])
                     }
                                         
                     uiView.attributedText = NSAttributedString(
@@ -247,10 +254,16 @@ extension _TextView: UIViewRepresentable {
         }
         
         correctCursorOffset: do {
-            // Reset the cursor offset if possible.
+            #if os(tvOS)
             if let cursorOffset = cursorOffset, let position = uiView.position(from: uiView.beginningOfDocument, offset: cursorOffset), let textRange = uiView.textRange(from: position, to: position) {
                 uiView.selectedTextRange = textRange
             }
+            #else
+            // Reset the cursor offset if possible.
+            if uiView.isEditable, let cursorOffset = cursorOffset, let position = uiView.position(from: uiView.beginningOfDocument, offset: cursorOffset), let textRange = uiView.textRange(from: position, to: position) {
+                uiView.selectedTextRange = textRange
+            }
+            #endif
         }
         
         updateKeyboardConfiguration: do {
@@ -304,6 +317,10 @@ extension _TextView: UIViewRepresentable {
         }
         
         func textViewDidChange(_ textView: UITextView) {
+            if let textView = textView as? UIHostingTextView<Label>, textView._isSwiftUIRuntimeDismantled {
+                return
+            }
+            
             if let text = text {
                 text.wrappedValue = textView.text
             } else {
@@ -413,6 +430,9 @@ extension _TextView: NSViewRepresentable {
         }
         
         nsView.textColor = configuration.textColor
+		if let tintColor = configuration.tintColor {
+			nsView.insertionPointColor = tintColor
+		}
     }
 }
 
@@ -546,6 +566,10 @@ extension TextView {
     public func foregroundColor(_ foregroundColor: Color) -> Self {
         then({ $0.configuration.textColor = foregroundColor.toUIColor() })
     }
+	
+	public func tint(_ tint: Color) -> Self {
+		then({ $0.configuration.tintColor = tint.toUIColor() })
+	}
     
     public func linkForegroundColor(_ linkForegroundColor: Color?) -> Self {
         then({ $0.configuration.linkForegroundColor = linkForegroundColor?.toUIColor() })
@@ -553,7 +577,7 @@ extension TextView {
     
     #endif
     
-    public func font(_ font: AppKitOrUIKitFont) -> Self {
+    public func font(_ font: AppKitOrUIKitFont?) -> Self {
         then({ $0.configuration.font = font })
     }
     
@@ -561,6 +585,11 @@ extension TextView {
     public func foregroundColor(_ foregroundColor: AppKitOrUIKitColor) -> Self {
         then({ $0.configuration.textColor = foregroundColor })
     }
+	
+	@_disfavoredOverload
+	public func tint(_ tint: AppKitOrUIKitColor) -> Self {
+		then({ $0.configuration.tintColor = tint })
+	}
     
     public func kerning(_ kerning: CGFloat) -> Self {
         then({ $0.configuration.kerning = kerning })

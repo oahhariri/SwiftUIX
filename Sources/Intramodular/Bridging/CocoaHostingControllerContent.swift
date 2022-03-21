@@ -18,8 +18,8 @@ public struct CocoaHostingControllerContent<Content: View>: View  {
     
     public var body: some View {
         content
-            .modifier(_ResolveAppKitOrUIKitViewController(_appKitOrUIKitViewControllerBox: .init(parent)))
-            .onPreferenceChange(_FixSafeAreaInsetsPreferenceKey.self) {
+            ._resolveAppKitOrUIKitViewController(with: parent)
+            .onPreferenceChange(_FixSafeAreaInsetsPreferenceKey.self) { [weak parent] in
                 if ($0 ?? false) {
                     parent?._fixSafeAreaInsetsIfNecessary()
                 }

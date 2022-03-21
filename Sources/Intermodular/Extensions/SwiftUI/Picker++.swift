@@ -5,6 +5,54 @@
 import Swift
 import SwiftUI
 
+extension Picker {
+    #if canImport(GroupActivities)
+    public init<Data: RandomAccessCollection, ID: Hashable, RowContent: View>(
+        _ data: Data,
+        id: KeyPath<Data.Element, ID>,
+        selection: Binding<Data.Element>,
+        @ViewBuilder content: @escaping (Data.Element) -> RowContent
+    ) where Data.Element == SelectionValue, Label == EmptyView, Content == ForEach<Data, ID, RowContent> {
+        self.init(selection: selection) {
+            ForEach(data, id: id) {
+                content($0)
+            }
+        } label: {
+            EmptyView()
+        }
+    }
+    
+    public init<Data: RandomAccessCollection, ID: Hashable, RowContent: View, Placeholder: View>(
+        _ data: Data,
+        id: KeyPath<Optional<Data.Element>, ID>,
+        selection: Binding<Data.Element?>,
+        @ViewBuilder content: @escaping (Data.Element) -> RowContent,
+        @ViewBuilder placeholder: @escaping () -> Placeholder
+    ) where Label == EmptyView, SelectionValue == Optional<Data.Element>, Content == ForEach<Array<Optional<Data.Element>>, ID, AnyView> {
+        self.init(
+            selection: Binding(
+                get: { selection.wrappedValue },
+                set: { selection.wrappedValue = ($0 == selection.wrappedValue) ? nil : $0 }
+            )
+        ) {
+            ForEach(data.map({ Optional.some($0) }) + [nil], id: id) { element in
+                PassthroughView {
+                    if let element = element {
+                        content(element)
+                    } else {
+                        placeholder()
+                    }
+                }
+                .tag(element)
+                .eraseToAnyView()
+            }
+        } label: {
+            EmptyView()
+        }
+    }
+    #endif
+}
+
 extension Picker where Label == Text, SelectionValue: CaseIterable & CustomStringConvertible & Hashable, SelectionValue.AllCases: RandomAccessCollection, Content == AnyView {
     public init(
         _ titleKey: LocalizedStringKey,
@@ -29,6 +77,24 @@ extension Picker where Label == Text, SelectionValue: CaseIterable & CustomStrin
                     .tag(value)
             }
             .eraseToAnyView()
+        }
+    }
+}
+
+extension Picker where Label == EmptyView, Content == AnyView {
+    public init(
+        selection: Binding<SelectionValue>
+    ) where SelectionValue.AllCases: RandomAccessCollection, SelectionValue: CaseIterable & CustomStringConvertible & Hashable {
+        self.init(selection: selection) {
+            PassthroughView {
+                ForEach(SelectionValue.allCases, id: \.self) { value in
+                    Text(value.description)
+                        .tag(Optional.some(value))
+                }
+            }
+            .eraseToAnyView()
+        } label: {
+            EmptyView()
         }
     }
 }

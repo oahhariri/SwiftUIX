@@ -14,13 +14,7 @@ class UIHostingVisualEffectBlurView<Content: View>: UIView {
     private var oldBlurStyle: UIBlurEffect.Style?
     private var oldVibrancyStyle: UIVibrancyEffectStyle?
     private var blurEffectAnimator: UIViewPropertyAnimator? = UIViewPropertyAnimator(duration: 1, curve: .linear)
-    
-    override var tintColor: UIColor? {
-        didSet {
-            blurView.tintColor = tintColor
-        }
-    }
-    
+        
     var rootView: Content {
         get {
             hostingController.rootView
@@ -51,8 +45,14 @@ class UIHostingVisualEffectBlurView<Content: View>: UIView {
     
     var intensity: Double {
         didSet {
-            if let animator = blurEffectAnimator {
-                animator.fractionComplete = .init(intensity)
+            DispatchQueue.asyncOnMainIfNecessary {
+                if let animator = self.blurEffectAnimator {
+                    guard animator.fractionComplete != CGFloat(self.intensity) else {
+                        return
+                    }
+                    
+                    animator.fractionComplete = CGFloat(self.intensity)
+                }
             }
         }
     }
@@ -88,7 +88,7 @@ class UIHostingVisualEffectBlurView<Content: View>: UIView {
     required public init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+        
     private func updateBlurAndVibrancyEffect() {
         blurView.effect = nil
         vibrancyView.effect = nil

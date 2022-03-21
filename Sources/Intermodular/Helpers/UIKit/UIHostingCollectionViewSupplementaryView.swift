@@ -7,41 +7,6 @@ import SwiftUI
 
 #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst)
 
-extension UIHostingCollectionViewSupplementaryView {
-    struct Configuration: Identifiable {
-        struct ID: Hashable {
-            let kind: String
-            let item: ItemIdentifierType?
-            let section: SectionIdentifierType
-        }
-        
-        var kind: String
-        var item: ItemType?
-        var section: SectionType
-        var itemIdentifier: ItemIdentifierType?
-        var sectionIdentifier: SectionIdentifierType
-        var indexPath: IndexPath
-        var viewProvider: ParentViewControllerType._SwiftUIType.ViewProvider
-        var maximumSize: OptionalDimensions?
-        
-        var id: ID {
-            .init(kind: kind, item: itemIdentifier, section: sectionIdentifier)
-        }
-    }
-    
-    struct Cache {
-        var content: AnyView?
-        var contentSize: CGSize?
-        var preferredContentSize: CGSize? {
-            didSet {
-                if oldValue != preferredContentSize {
-                    content = nil
-                }
-            }
-        }
-    }
-}
-
 class UIHostingCollectionViewSupplementaryView<
     SectionType,
     SectionIdentifierType: Hashable,
@@ -60,15 +25,20 @@ class UIHostingCollectionViewSupplementaryView<
         SectionFooterContent,
         Content
     >
+    typealias ContentConfiguration = _CollectionViewCellOrSupplementaryViewConfiguration<ItemType, ItemIdentifierType, SectionType, SectionIdentifierType>
+    typealias ContentState = _CollectionViewCellOrSupplementaryViewState<ItemType, ItemIdentifierType, SectionType, SectionIdentifierType>
+    typealias ContentPreferences = _CollectionViewCellOrSupplementaryViewPreferences<ItemType, ItemIdentifierType, SectionType, SectionIdentifierType>
+    typealias ContentCache = _CollectionViewCellOrSupplementaryViewCache<ItemType, ItemIdentifierType, SectionType, SectionIdentifierType>
+
+    var latestRepresentableUpdate: _AppKitOrUIKitViewRepresentableUpdate?
+    var configuration: ContentConfiguration?
+    var cache = ContentCache()
     
-    var configuration: Configuration?
-    var cache = Cache()
-    
-    var content: AnyView? {
+    var content: _CollectionViewCellOrSupplementaryViewContent {
         if let content = cache.content {
             return content
         } else if let configuration = configuration {
-            let content = configuration.viewProvider.sectionContent(for: configuration.kind)?(configuration.section)
+            let content = configuration.makeContent()
             
             self.cache.content = content
             
@@ -82,7 +52,7 @@ class UIHostingCollectionViewSupplementaryView<
     
     private var contentHostingController: ContentHostingController?
     
-    private weak var parentViewController: ParentViewControllerType?
+    weak var parentViewController: ParentViewControllerType?
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -175,6 +145,10 @@ extension UIHostingCollectionViewSupplementaryView {
         guard configuration != nil else {
             return
         }
+
+        defer {
+            latestRepresentableUpdate = parentViewController?.latestRepresentableUpdate
+        }
         
         if let contentHostingController = contentHostingController {
             contentHostingController.update(disableAnimation: disableAnimation)
@@ -187,10 +161,6 @@ extension UIHostingCollectionViewSupplementaryView {
         inParent parentViewController: ParentViewControllerType?,
         isPrototype: Bool = false
     ) {
-        UIView.performWithoutAnimation {
-            contentHostingController?.view.isHidden = false
-        }
-        
         guard configuration != nil else {
             return
         }
@@ -204,7 +174,7 @@ extension UIHostingCollectionViewSupplementaryView {
             
             return
         }
-        
+                
         if let parentViewController = parentViewController {
             if contentHostingController.parent == nil {
                 contentHostingController.move(toParent: parentViewController, ofSupplementaryView: self)
@@ -218,9 +188,7 @@ extension UIHostingCollectionViewSupplementaryView {
     }
     
     func supplementaryViewDidEndDisplaying() {
-        UIView.performWithoutAnimation {
-            contentHostingController?.view.isHidden = true
-        }
+        updateCollectionCache()
     }
     
     func updateCollectionCache() {
@@ -228,35 +196,14 @@ extension UIHostingCollectionViewSupplementaryView {
             return
         }
         
-        parentViewController.cache.setSupplementaryViewCache(cache, for: configuration.id)
+        parentViewController.cache.setContentCache(cache, for: configuration.id)
     }
 }
 
 // MARK: - Auxiliary Implementation -
 
 extension UIHostingCollectionViewSupplementaryView {
-    private struct RootView: View {
-        var _collectionViewProxy: CollectionViewProxy
-        var content: AnyView?
-        var configuration: Configuration?
-        
-        init(base: UIHostingCollectionViewSupplementaryView) {
-            _collectionViewProxy = .init(base.parentViewController)
-            content = base.content
-            configuration = base.configuration
-        }
-        
-        var body: some View {
-            if let content = content, let configuration = configuration {
-                content
-                    .environment(\._collectionViewProxy, .init(.constant(_collectionViewProxy)))
-                    .edgesIgnoringSafeArea(.all)
-                    .id(configuration.id)
-            }
-        }
-    }
-    
-    private class ContentHostingController: UIHostingController<RootView> {
+    private class ContentHostingController: UIHostingController<_CollectionViewCellOrSupplementaryViewContainer<ItemType, ItemIdentifierType, SectionType, SectionIdentifierType>> {
         weak var base: UIHostingCollectionViewSupplementaryView?
         
         init(base: UIHostingCollectionViewSupplementaryView) {
@@ -277,11 +224,13 @@ extension UIHostingCollectionViewSupplementaryView {
             _ targetSize: CGSize
         ) -> CGSize {
             sizeThatFits(
-                in: targetSize,
-                withHorizontalFittingPriority: nil,
-                verticalFittingPriority: nil
+                AppKitOrUIKitLayoutSizeProposal(
+                    targetSize: targetSize,
+                    maximumSize: base?.configuration?.maximumSize ?? nil,
+                    horizontalFittingPriority: nil,
+                    verticalFittingPriority: nil
+                )
             )
-            .clamped(to: base?.configuration?.maximumSize)
         }
         
         func systemLayoutSizeFitting(
@@ -290,11 +239,13 @@ extension UIHostingCollectionViewSupplementaryView {
             verticalFittingPriority: UILayoutPriority
         ) -> CGSize {
             sizeThatFits(
-                in: targetSize,
-                withHorizontalFittingPriority: horizontalFittingPriority,
-                verticalFittingPriority: verticalFittingPriority
+                AppKitOrUIKitLayoutSizeProposal(
+                    targetSize: targetSize,
+                    maximumSize: base?.configuration?.maximumSize ?? nil,
+                    horizontalFittingPriority: horizontalFittingPriority,
+                    verticalFittingPriority: verticalFittingPriority
+                )
             )
-            .clamped(to: base?.configuration?.maximumSize)
         }
         
         func move(
@@ -302,41 +253,57 @@ extension UIHostingCollectionViewSupplementaryView {
             ofSupplementaryView supplementaryView: UIHostingCollectionViewSupplementaryView
         ) {
             if let parent = parent {
+                let hostAsChildViewController = !parent.configuration.unsafeFlags.contains(.disableCellHostingControllerEmbed)
+
                 if let existingParent = self.parent, existingParent !== parent {
                     move(toParent: nil, ofSupplementaryView: supplementaryView)
                 }
                 
                 if self.parent == nil {
-                    UIView.performWithoutAnimation {
-                        self.willMove(toParent: parent)
-                        parent.addChild(self)
-                        supplementaryView.addSubview(view)
-                        view.frame = supplementaryView.bounds
-                        didMove(toParent: parent)
+                    if hostAsChildViewController {
+                        UIView.performWithoutAnimation {
+                            self.willMove(toParent: parent)
+                            parent.addChild(self)
+                            supplementaryView.addSubview(view)
+                            view.frame = supplementaryView.bounds
+                            didMove(toParent: parent)
+                        }
+                    } else {
+                        if view.superview !== supplementaryView {
+                            UIView.performWithoutAnimation {
+                                supplementaryView.addSubview(view)
+                                view.frame = supplementaryView.bounds
+                            }
+                        }
                     }
                 } else {
                     assertionFailure()
                 }
             } else {
-                UIView.performWithoutAnimation {
-                    willMove(toParent: nil)
-                    view.removeFromSuperview()
-                    removeFromParent()
+                if self.parent != nil {
+                    UIView.performWithoutAnimation {
+                        willMove(toParent: nil)
+                        view.removeFromSuperview()
+                        removeFromParent()
+                    }
                 }
             }
         }
         
-        func update(disableAnimation: Bool = true, forced: Bool = false) {
+        func update(
+            disableAnimation: Bool = true,
+            forced: Bool = false
+        ) {
             guard let base = base else {
                 return
             }
             
-            let currentConfiguration = rootView.configuration
-            let newConfiguration = base.configuration
+            let currentContentConfiguration = rootView.configuration.contentConfiguration
+            let newContentConfiguration = base.configuration
             
             if !forced {
-                if let currentConfiguration = currentConfiguration, let newConfiguration = newConfiguration {
-                    guard currentConfiguration.id != newConfiguration.id else {
+                if let newContentConfiguration = newContentConfiguration {
+                    guard currentContentConfiguration.id != newContentConfiguration.id else {
                         return
                     }
                 }
@@ -356,7 +323,8 @@ extension UIHostingCollectionViewSupplementaryView {
 }
 
 extension String {
-    static let hostingCollectionViewSupplementaryViewIdentifier = "UIHostingCollectionViewSupplementaryView"
+    static let hostingCollectionViewHeaderSupplementaryViewIdentifier = "UIHostingCollectionViewHeaderSupplementaryView"
+    static let hostingCollectionViewFooterSupplementaryViewIdentifier = "UIHostingCollectionViewFooterSupplementaryView"
 }
 
 #endif

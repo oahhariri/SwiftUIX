@@ -52,7 +52,7 @@ extension CollectionView {
     ) where Data.Element: Identifiable {
         self.init(
             internalBody: _CollectionView(
-                CollectionOfOne(ListSection(0, items: data.lazy.map(_IdentifierHashedValue.init))),
+                CollectionOfOne(ListSection<Int, _IdentifierHashedValue<Data.Element>>(0, items: data.lazy.map(_IdentifierHashedValue.init))),
                 sectionHeader: Never.produce,
                 sectionFooter: Never.produce,
                 rowContent: { rowContent($1.value) }
@@ -60,7 +60,24 @@ extension CollectionView {
             .eraseToAnyView()
         )
     }
-    
+
+    public init<Data: RandomAccessCollection, Header: View, RowContent: View, Footer: View>(
+        _ data: Data,
+        @ViewBuilder rowContent: @escaping (Data.Element) -> RowContent,
+        @ViewBuilder header: @escaping () -> Header,
+        @ViewBuilder footer: @escaping () -> Footer
+    ) where Data.Element: Identifiable {
+        self.init(
+            internalBody: _CollectionView(
+                CollectionOfOne(ListSection<Int, _IdentifierHashedValue<Data.Element>>(0, items: data.lazy.map(_IdentifierHashedValue.init))),
+                sectionHeader: { _ in header() },
+                sectionFooter: { _ in footer() },
+                rowContent: { rowContent($1.value) }
+            )
+            .eraseToAnyView()
+        )
+    }
+
     public init<Data: RandomAccessCollection, ID: Hashable, RowContent: View>(
         _ data: Data,
         id: KeyPath<Data.Element, ID>,
@@ -111,7 +128,7 @@ extension CollectionView {
         RowContent: View,
         Footer: View
     >(
-        _ data: Data,
+        sections data: Data,
         id: KeyPath<Data.Element, ID>,
         @ViewBuilder rowContent: @escaping (Data.Element) -> Section<Header, ForEach<Items, Items.Element.ID, RowContent>, Footer>
     ) where Items.Element: Identifiable {
@@ -142,6 +159,39 @@ extension CollectionView {
             )
             .eraseToAnyView()
         )
+    }
+
+    public init<
+        Data: RandomAccessCollection,
+        ID: Hashable,
+        Items: RandomAccessCollection,
+        Header: View,
+        RowContent: View,
+        Footer: View
+    >(
+        _ axes: Axis.Set,
+        _ data: Data,
+        id: KeyPath<Data.Element, ID>,
+        @ViewBuilder rowContent: @escaping (Data.Element) -> Section<Header, ForEach<Items, Items.Element.ID, RowContent>, Footer>
+    ) where Items.Element: Identifiable {
+        self.init(sections: data, id: id, rowContent: rowContent)
+        
+        _scrollViewConfiguration.axes = axes
+    }
+    
+    public init<
+        Data: RandomAccessCollection,
+        ID: Hashable,
+        Items: RandomAccessCollection,
+        Header: View,
+        RowContent: View,
+        Footer: View
+    >(
+        _ data: Data,
+        id: KeyPath<Data.Element, ID>,
+        @ViewBuilder rowContent: @escaping (Data.Element) -> Section<Header, ForEach<Items, Items.Element.ID, RowContent>, Footer>
+    ) where Items.Element: Identifiable {
+        self.init(sections: data, id: id, rowContent: rowContent)
     }
     
     @_disfavoredOverload

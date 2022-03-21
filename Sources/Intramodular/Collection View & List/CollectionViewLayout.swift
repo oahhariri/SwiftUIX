@@ -51,17 +51,20 @@ public struct FlowCollectionViewLayout: Hashable, CollectionViewLayout {
     public let axes: Axis.Set
     public let minimumLineSpacing: CGFloat?
     public let minimumInteritemSpacing: CGFloat?
+    public let itemSize: CGSize?
     public let sectionInsets: EdgeInsets?
     
     public init(
         _ axes: Axis.Set = .vertical,
         minimumLineSpacing: CGFloat? = nil,
         minimumInteritemSpacing: CGFloat? = nil,
+        itemSize: CGSize? = nil,
         sectionInsets: EdgeInsets? = nil
     ) {
         self.axes = axes
         self.minimumLineSpacing = minimumLineSpacing
         self.minimumInteritemSpacing = minimumInteritemSpacing
+        self.itemSize = itemSize
         self.sectionInsets = sectionInsets
     }
     
@@ -70,9 +73,27 @@ public struct FlowCollectionViewLayout: Hashable, CollectionViewLayout {
         hasher.combine(minimumLineSpacing)
         hasher.combine(minimumInteritemSpacing)
         hasher.combine(sectionInsets?.top)
+        hasher.combine(itemSize?.width)
+        hasher.combine(itemSize?.height)
         hasher.combine(sectionInsets?.leading)
         hasher.combine(sectionInsets?.bottom)
         hasher.combine(sectionInsets?.trailing)
+    }
+
+    class _UICollectionViewFlowLayout: UICollectionViewFlowLayout {
+        override func invalidationContext(forBoundsChange newBounds: CGRect) -> UICollectionViewLayoutInvalidationContext {
+            let context = super.invalidationContext(forBoundsChange: newBounds) as! UICollectionViewFlowLayoutInvalidationContext
+            
+            if let collectionView = collectionView {
+                context.invalidateFlowLayoutDelegateMetrics = collectionView.bounds.size != newBounds.size
+            }
+            
+            return context
+        }
+
+        override func shouldInvalidateLayout(forBoundsChange newBounds: CGRect) -> Bool {
+            true
+        }
     }
 
     public func _toUICollectionViewLayout() -> UICollectionViewLayout {
@@ -96,20 +117,18 @@ public struct FlowCollectionViewLayout: Hashable, CollectionViewLayout {
             layout.sectionInset = .init(sectionInsets)
         }
         
-        layout.estimatedItemSize = UICollectionViewFlowLayout.automaticSize
-        layout.itemSize = UICollectionViewFlowLayout.automaticSize
+        if let itemSize = itemSize {
+            layout.itemSize = itemSize
+        } else {
+            layout.estimatedItemSize = .zero
+            layout.itemSize = UICollectionViewFlowLayout.automaticSize
+        }
         
         return layout
     }
     
     public static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.hashValue == rhs.hashValue
-    }
-}
-
-extension UICollectionViewLayout: CollectionViewLayout {
-    public func _toUICollectionViewLayout() -> UICollectionViewLayout {
-        self
     }
 }
 

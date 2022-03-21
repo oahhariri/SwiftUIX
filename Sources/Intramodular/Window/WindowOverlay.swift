@@ -8,14 +8,11 @@ import Swift
 import SwiftUI
 
 /// A window overlay for SwiftUI.
-@usableFromInline
 struct WindowOverlay<Content: View>: AppKitOrUIKitViewControllerRepresentable {
-    @usableFromInline
-    let content: Content
+    private let content: Content
+    private let isKeyAndVisible: Binding<Bool>
     
-    @usableFromInline
-    let isKeyAndVisible: Binding<Bool>
-    
+ 
     @usableFromInline
     let theme: UIUserInterfaceStyle
     
@@ -26,12 +23,10 @@ struct WindowOverlay<Content: View>: AppKitOrUIKitViewControllerRepresentable {
         self.theme = theme
     }
     
-    @usableFromInline
     func makeAppKitOrUIKitViewController(context: Context) -> AppKitOrUIKitViewControllerType {
         .init(content: content, isKeyAndVisible: isKeyAndVisible, theme: theme)
     }
     
-    @usableFromInline
     func updateAppKitOrUIKitViewController(_ viewController: AppKitOrUIKitViewControllerType, context: Context) {
         viewController.isKeyAndVisible = isKeyAndVisible
         viewController.content = content
@@ -40,48 +35,51 @@ struct WindowOverlay<Content: View>: AppKitOrUIKitViewControllerRepresentable {
         
         #if os(iOS)
         if let window = viewController.contentWindow {
-            window.overrideUserInterfaceStyle = context.environment.colorScheme == .light ? .light : .dark
-            window.rootViewController?.overrideUserInterfaceStyle = window.overrideUserInterfaceStyle
+            let userInterfaceStyle: UIUserInterfaceStyle = context.environment.colorScheme == .light ? .light : .dark
+            
+            if window.overrideUserInterfaceStyle != userInterfaceStyle {
+                window.overrideUserInterfaceStyle = userInterfaceStyle
+                window.rootViewController?.overrideUserInterfaceStyle = userInterfaceStyle
+            }
         }
         #endif
     }
     
-    @usableFromInline
     static func dismantleAppKitOrUIKitViewController(_ viewController: AppKitOrUIKitViewControllerType, coordinator: Coordinator) {
-        DispatchQueue.global(qos: .userInitiated).async {
-            // do something
-            viewController.isKeyAndVisible.wrappedValue = false
-            viewController.updateWindow()
-            viewController.contentWindow = nil
+        DispatchQueue.asyncOnMainIfNecessary {
+            if let contentWindow = viewController.contentWindow {
+                #if os(iOS)
+                contentWindow.isHidden = true
+                #endif
+                viewController.contentWindow = nil
+            }
+ 
         }
     }
 }
 
 extension WindowOverlay {
-    @usableFromInline
     class AppKitOrUIKitViewControllerType: AppKitOrUIKitViewController {
-        @usableFromInline
         var content: Content {
             didSet {
                 contentWindow?.rootView = content
             }
         }
         
-        @usableFromInline
         var isKeyAndVisible: Binding<Bool>
-        
+ 
         @usableFromInline
         var theme: UIUserInterfaceStyle
         
         @usableFromInline
         var contentWindow: AppKitOrUIKitHostingWindow<Content>?
         #if os(macOS)
-        @usableFromInline
         var contentWindowController: NSWindowController?
         #endif
-        
+         
         @usableFromInline
         init(content: Content, isKeyAndVisible: Binding<Bool>,theme:UIUserInterfaceStyle) {
+ 
             self.content = content
             self.isKeyAndVisible = isKeyAndVisible
             self.theme = theme
@@ -92,7 +90,6 @@ extension WindowOverlay {
             #endif
         }
         
-        @usableFromInline
         func updateWindow() {
             if let contentWindow = contentWindow, contentWindow.isHidden == !isKeyAndVisible.wrappedValue {
                 return
@@ -142,23 +139,25 @@ extension WindowOverlay {
                 contentWindow.rootViewController?.view.setNeedsDisplay()
                 #endif
             } else {
-                #if os(macOS)
-                contentWindow?.close()
-                #else
-                contentWindow?.isHidden = true
-                contentWindow?.isUserInteractionEnabled = false
-                contentWindow = nil
-                #endif
+                if let contentWindow = contentWindow {
+                    #if os(macOS)
+                    contentWindow.close()
+                    #else
+                    contentWindow.isHidden = true
+                    contentWindow.isUserInteractionEnabled = false
+                    contentWindow.windowScene = nil
+
+                    self.contentWindow = nil
+                    #endif
+                }
             }
         }
         
-        @usableFromInline
         @objc required dynamic init?(coder aDecoder: NSCoder) {
             fatalError("init(coder:) has not been implemented")
         }
         
         #if !os(macOS)
-        @usableFromInline
         override func didMove(toParent parent: UIViewController?) {
             super.didMove(toParent: parent)
             

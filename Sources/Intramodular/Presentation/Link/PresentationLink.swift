@@ -10,12 +10,10 @@ import SwiftUI
 ///
 /// A revival of `PresentationLink` (from Xcode 11 beta 3).
 public struct PresentationLink<Destination: View, Label: View>: PresentationLinkView {
+    @Environment(\._environmentInsertions) private var environmentInsertions
     #if os(iOS) || os(macOS) || os(tvOS) || targetEnvironment(macCatalyst)
-    @Environment(\._appKitOrUIKitViewController) private var _appKitOrUIKitViewController
     @Environment(\.cocoaPresentationContext) private var cocoaPresentationContext
     #endif
-    
-    @Environment(\.environmentBuilder) private var environmentBuilder
     @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(\.modalPresentationStyle) private var _environment_modalPresentationStyle
     @Environment(\.presenter) private var presenter
@@ -28,8 +26,9 @@ public struct PresentationLink<Destination: View, Label: View>: PresentationLink
     private var _presentationStyle: ModalPresentationStyle?
     
     private let label: Label
-    
-    @State private var name = ViewName()
+    private let action: () -> Void
+
+    @State private var name: AnyHashable = UUID()
     @State private var id: AnyHashable = UUID()
     @State private var _internal_isPresented: Bool = false
     
@@ -51,34 +50,46 @@ public struct PresentationLink<Destination: View, Label: View>: PresentationLink
     }
     
     private var presentation: AnyModalPresentation {
+        func reset() {
+            self.isPresented.wrappedValue = false
+        }
+        
+        #if !os(watchOS)
         let content = AnyPresentationView(
-            _destination.managedObjectContext(managedObjectContext)
+            _destination
+                .managedObjectContext(managedObjectContext)
         )
         .modalPresentationStyle(presentationStyle)
         .preferredSourceViewName(name)
-        .mergeEnvironmentBuilder(environmentBuilder)
+        .environment(environmentInsertions)
+        #else
+        let content = AnyPresentationView(
+            _destination
+                .managedObjectContext(managedObjectContext)
+        )
+        .modalPresentationStyle(presentationStyle)
+        .preferredSourceViewName(name)
+        .environment(environmentInsertions)
+        #endif
         
         return AnyModalPresentation(
             id: id,
             content: content,
             onDismiss: _onDismiss,
-            reset: {
-                self.id = UUID()
-                self.isPresented.wrappedValue = false
-            }
+            reset: reset
         )
     }
     
     public var body: some View {
         PassthroughView {
-            if let presenter = presenter, userInterfaceIdiom != .mac,  presentationStyle != .automatic {
-                customPopoverPresentationButton(presenter: presenter)
+            if let presenter = presenter, userInterfaceIdiom != .mac, presentationStyle != .automatic {
+                customPresentationButton(presenter: presenter)
             } else if presentationStyle == .automatic {
                 systemSheetPresentationButton
             } else if presentationStyle == .popover, userInterfaceIdiom == .pad || userInterfaceIdiom == .mac {
                 systemPopoverPresentationButton
             } else {
-                customPresentationButton
+                customPresentationButtonWithAdHocPresenter
             }
         }
         .background(
@@ -91,7 +102,7 @@ public struct PresentationLink<Destination: View, Label: View>: PresentationLink
     }
     
     @ViewBuilder
-    private func customPopoverPresentationButton(presenter: DynamicViewPresenter) -> some View {
+    private func customPresentationButton(presenter: DynamicViewPresenter) -> some View {
         #if os(iOS) || targetEnvironment(macCatalyst)
         if case .popover(_, _) = presentationStyle {
             IntrinsicGeometryReader { proxy in
@@ -109,7 +120,7 @@ public struct PresentationLink<Destination: View, Label: View>: PresentationLink
                                 : nil
                         )
                     )
-                    .modifier(_ResolveAppKitOrUIKitViewController())
+                    ._resolveAppKitOrUIKitViewControllerIfAvailable()
                 } else {
                     Button(
                         action: togglePresentation,
@@ -127,10 +138,35 @@ public struct PresentationLink<Destination: View, Label: View>: PresentationLink
                 }
             }
         } else {
-            Button(action: { presenter.presentOnTop(presentation) }, label: label)
+            Button {
+                presenter.presentOnTop(presentation)
+                
+                isPresented.wrappedValue = true
+            } label: {
+                label
+            }
+            .background {
+                ZeroSizeView()
+                    .id(isPresented.wrappedValue)
+                    .preference(
+                        key: AnyModalPresentation.PreferenceKey.self,
+                        value: .init(
+                            presentationID: id,
+                            presentation: isPresented.wrappedValue
+                            ? presentation
+                            : nil
+                        )
+                    )
+            }
         }
         #else
-        Button(action: { presenter.present(presentation) }, label: label)
+        Button {
+            togglePresentation()
+            
+            presenter.present(presentation)
+        } label: {
+            label
+        }
         #endif
     }
     
@@ -161,9 +197,71 @@ public struct PresentationLink<Destination: View, Label: View>: PresentationLink
             content: { presentation.content }
         )
     }
-    
+
+    #if os(iOS) || os(macOS) || os(tvOS) || targetEnvironment(macCatalyst)
+    struct _AdHocPresenter: View {
+        @Environment(\.cocoaPresentationCoordinatorBox) private var cocoaPresentationCoordinatorBox
+
+        let id: AnyHashable
+        let isPresented: Binding<Bool>
+        let presentation: AnyModalPresentation
+
+        var cocoaPresentationCoordinator: CocoaPresentationCoordinator? {
+            cocoaPresentationCoordinatorBox.value
+        }
+
+        @ViewBuilder
+        var body: some View {
+            ZeroSizeView()
+                .id(isPresented.wrappedValue)
+                .preference(
+                    key: AnyModalPresentation.PreferenceKey.self,
+                    value: .init(
+                        presentationID: id,
+                        presentation: isPresented.wrappedValue
+                        ? presentation
+                        : nil
+                    )
+                )
+                .background {
+                    PerformAction { [weak cocoaPresentationCoordinator] in
+                        guard
+                            isPresented.wrappedValue,
+                            let presentedCoordinator = cocoaPresentationCoordinator?.presentedCoordinator,
+                            let activePresentation = presentedCoordinator.presentation
+                        else {
+                            return
+                        }
+
+                        if activePresentation.id == presentation.id {
+                            presentedCoordinator.update(with: .init(presentationID: id, presentation: presentation))
+                        }
+                    }
+                }
+                .onChange(of: isPresented.wrappedValue) { [weak cocoaPresentationCoordinator] _ in
+                    #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst)
+                    // Attempt to detect an invalid state where the coordinator has a presented coordinator, but no presentation.
+                    guard
+                        !isPresented.wrappedValue,
+                        let presentedCoordinator = cocoaPresentationCoordinator?.presentedCoordinator,
+                        let presentedViewController = presentedCoordinator.viewController,
+                        presentedCoordinator.presentation == nil,
+                        presentedViewController is CocoaPresentationHostingController
+                    else {
+                        return
+                    }
+
+                    // This whole on-change hack is needed because sometimes even though `isPresented.wrappedValue` changes to `false`, the preference key doesn't propagate up.
+                    // Here we force the presentation coordinator to update.
+                    presentedCoordinator.update(with: .init(presentationID: id, presentation: nil))
+                    #endif
+                }
+        }
+    }
+    #endif
+
     @ViewBuilder
-    private var customPresentationButton: some View {
+    private var customPresentationButtonWithAdHocPresenter: some View {
         #if os(iOS) || os(macOS) || os(tvOS) || targetEnvironment(macCatalyst)
         Button(
             action: togglePresentation,
@@ -171,16 +269,11 @@ public struct PresentationLink<Destination: View, Label: View>: PresentationLink
         )
         .background {
             CocoaHostingView {
-                ZeroSizeView()
-                    .preference(
-                        key: AnyModalPresentation.PreferenceKey.self,
-                        value: .init(
-                            presentationID: id,
-                            presentation: isPresented.wrappedValue ?
-                                presentation
-                                : nil
-                        )
-                    )
+                _AdHocPresenter(
+                    id: id,
+                    isPresented: isPresented,
+                    presentation: presentation
+                )
             }
             .allowsHitTesting(false)
             .accessibility(hidden: true)
@@ -191,6 +284,8 @@ public struct PresentationLink<Destination: View, Label: View>: PresentationLink
     }
     
     private func togglePresentation() {
+        action()
+        
         isPresented.wrappedValue.toggle()
     }
 }
@@ -198,6 +293,20 @@ public struct PresentationLink<Destination: View, Label: View>: PresentationLink
 // MARK: - API -
 
 extension PresentationLink {
+    public init(
+        action: @escaping () -> Void,
+        @ViewBuilder destination: () -> Destination,
+        onDismiss: @escaping () -> () = { },
+        @ViewBuilder label: () -> Label
+    ) {
+        self._destination = destination()
+        self._onDismiss = onDismiss
+        self._isPresented = nil
+        
+        self.label = label()
+        self.action = action
+    }
+
     public init(
         destination: Destination,
         onDismiss: (() -> ())?,
@@ -208,35 +317,34 @@ extension PresentationLink {
         self._isPresented = nil
         
         self.label = label()
+        self.action = { }
     }
     
     public init(
         destination: Destination,
         onDismiss: @escaping () -> () = { },
-        style: ModalPresentationStyle,
         @ViewBuilder label: () -> Label
     ) {
         self._destination = destination
         self._onDismiss = onDismiss
         self._isPresented = nil
-        self._presentationStyle = style
         
         self.label = label()
+        self.action = { }
     }
-    
+        
     public init(
         destination: Destination,
         isPresented: Binding<Bool>,
         onDismiss: @escaping () -> () = { },
-        style: ModalPresentationStyle,
         @ViewBuilder label: () -> Label
     ) {
         self._destination = destination
         self._onDismiss = onDismiss
         self._isPresented = isPresented
-        self._presentationStyle = style
         
         self.label = label()
+        self.action = { }
     }
     
     public init(
@@ -250,6 +358,7 @@ extension PresentationLink {
         self._isPresented = isPresented
         
         self.label = label()
+        self.action = { }
     }
     
     public init(
@@ -262,6 +371,7 @@ extension PresentationLink {
         self._isPresented = isPresented
         
         self.label = label()
+        self.action = { }
     }
     
     public init<V: Hashable>(
@@ -284,6 +394,13 @@ extension PresentationLink {
         )
         
         self.label = label()
+        self.action = { }
+    }
+}
+
+extension PresentationLink {
+    public func presentationStyle(_ presentationStyle: ModalPresentationStyle) -> Self {
+        then({ $0._presentationStyle = presentationStyle })
     }
 }
 

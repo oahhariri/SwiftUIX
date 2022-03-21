@@ -27,7 +27,7 @@ public struct AnyModalPresentation: Identifiable {
     public func environment<T>(_ key: WritableKeyPath<EnvironmentValues, T>, _ value: T) -> Self {
         var result = self
         
-        result.content.mergeEnvironmentBuilderInPlace(.value(value, forKey: key))
+        result.content.environmentInPlace(.value(value, forKey: key))
         
         return result
     }
@@ -103,13 +103,13 @@ struct _SetDismissDisabled: ViewModifier {
     
     func body(content: Content) -> some View {
         #if os(iOS) || targetEnvironment(macCatalyst)
-        return content.onAppKitOrUIKitViewControllerResolution { viewController in
-            viewControllerBox.value = viewController.root ?? viewController
-            viewControllerBox.value?.isModalInPresentation = disabled
+        return content.onAppKitOrUIKitViewControllerResolution { [weak viewControllerBox] viewController in
+            viewControllerBox?.value = viewController.root ?? viewController
+            viewControllerBox?.value?.isModalInPresentation = disabled
         }
         .preference(key: _DismissDisabled.self, value: disabled)
-        .onChange(of: disabled) { disabled in
-            viewControllerBox.value?.isModalInPresentation = disabled
+        .onChange(of: disabled) { [weak viewControllerBox] disabled in
+            viewControllerBox?.value?.isModalInPresentation = disabled
         }
         #else
         return content.preference(key: _DismissDisabled.self, value: disabled)
